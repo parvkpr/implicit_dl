@@ -719,3 +719,38 @@ class Conv(TensorOp):
 
 def conv(a, b, stride=1, padding=1):
     return Conv(stride, padding)(a, b)
+
+
+class LSImplicit(TensorOp):
+    def __init__(self, opt, cost_fn, implicit_grad_method):
+        """
+        """
+        self.opt = opt
+        self.cost_fn = cost_fn
+        self.implicit_grad_method = implicit_grad_method
+
+
+    def implicitDiff(self):
+        return 1.0
+    
+    def unrollDiff(self):
+        return 2.0 
+    
+    def compute_grad(self):
+        if self.implicit_grad_method == "implicit":
+            return self.implicitDiff()
+        elif self.implicit_grad_method == "unroll":
+            return self.unrollDiff()
+    
+    def compute(self, x):
+        self.x_star = self.opt.solve(cost_fn=self.cost_fn)
+        return self.x_star 
+    
+    def gradient(self, out_grad, node):
+        cur_input = node.inputs[0]
+        layer_grad = self.compute_grad()
+        return out_grad @ layer_grad
+
+
+def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
+    return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)

@@ -62,3 +62,43 @@ class Adam(Optimizer):
         ### BEGIN YOUR SOLUTION
         raise NotImplementedError()
         ### END YOUR SOLUTION
+
+class LU(Optimizer):
+
+    def __init__(self, device)-> None:
+        """
+        Based on the device picks cuda or cpu version of LU
+        """
+        pass
+    
+    def step(self):
+        """
+        """
+        pass
+
+class GN(Optimizer):
+    def __init__(self, device) -> None:
+        '''
+        '''
+        pass
+    
+    def step(self):
+        """
+        """
+        pass
+
+class InnerOptimizer(Optimizer):
+    """
+        This class takes a non linear solver which is used to iteratively perform 
+        gradient steps for the inner NLLS problem
+        The LinearSolver is used to solve the linearized version at each step 
+        If NonLinearSolver is None, then assume the problem is linear
+    """
+    def __init__(self, device, NonlinearSolver=None, LinearSolver=None) -> None:
+        self.NonlinearSolver=NonlinearSolver
+        self.LinearSolver = LinearSolver
+        self.device = device
+    
+    def solve(self, cost_fn):
+        print('lmao peepeepoopoo')
+        return 1.0

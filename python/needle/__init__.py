@@ -8,4 +8,6 @@ from .init import ones, zeros, zeros_like, ones_like
 from . import data
 from . import nn
 from . import optim
+from . import implicit_cost_function
 from .backend_selection import *
+
