@@ -122,5 +122,4 @@ class InnerOptimizer(Optimizer):
         self.device = device
     
     def solve(self, cost_fn):
-        print('lmao peepeepoopoo')
-        return ndl.Tensor(1.0)
+        return ndl.Tensor([1.0], device=ndl.cpu())
