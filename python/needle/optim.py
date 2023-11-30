@@ -25,7 +25,13 @@ class SGD(Optimizer):
 
     def step(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        for i, _ in enumerate(self.params):
+            if i not in self.u:
+                self.u[i] = ndl.init.zeros_like(self.params[i]).detach()
+            if self.params[i].requires_grad:
+                T = (self.params[i].grad + ndl.mul_scalar(self.params[i], self.weight_decay)).detach()
+                self.u[i] = (self.momentum*self.u[i] + (1-self.momentum)*T).detach()
+                self.params[i].data = self.params[i].data - self.lr*self.u[i]
         ### END YOUR SOLUTION
 
     def clip_grad_norm(self, max_norm=0.25):
@@ -60,7 +66,23 @@ class Adam(Optimizer):
 
     def step(self):
         ### BEGIN YOUR SOLUTION
-        raise NotImplementedError()
+        self.t+=1
+        for i, _ in enumerate(self.params):
+            if i not in self.m:
+                self.m[i] = ndl.init.zeros_like(self.params[i])
+            if i not in self.v:
+                self.v[i] = ndl.init.zeros_like(self.params[i])
+            if self.params[i].requires_grad:
+                T1 = self.params[i].grad + ndl.mul_scalar(self.params[i], self.weight_decay).detach()
+                T2 = ndl.power_scalar(T1, 2).detach()
+                self.m[i] = (self.beta1*self.m[i] + (1-self.beta1)*T1).detach()
+                self.v[i] = (self.beta2*self.v[i] + (1-self.beta2)*T2).detach()
+                
+                mhat = self.m[i]/(1-self.beta1**self.t)
+                vhat = self.v[i]/(1-self.beta2**self.t)
+
+                self.params[i].data = (self.params[i].data - self.lr*ndl.divide(mhat, ndl.power_scalar(vhat, 1/2) + self.eps)).detach()
+        
         ### END YOUR SOLUTION
 
 class LU(Optimizer):
@@ -101,4 +123,4 @@ class InnerOptimizer(Optimizer):
     
     def solve(self, cost_fn):
         print('lmao peepeepoopoo')
-        return 1.0
+        return ndl.Tensor(1.0)

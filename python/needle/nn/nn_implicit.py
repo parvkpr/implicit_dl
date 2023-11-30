@@ -8,7 +8,7 @@ import numpy as np
 from .nn_basic import Parameter, Module
 
 
-class Implicit(Module):
+class ImplicitLayer(Module):
     """
     this is our non linear least squares implicit layers
     """
