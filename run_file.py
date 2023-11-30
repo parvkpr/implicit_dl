@@ -32,7 +32,7 @@ def error_function(a, b, x, y):
     xsquare = ops.power_scalar(x, 2)
     a_bd = ops.broadcast_to(a, xsquare.shape)
     b_bd = ops.broadcast_to(b, xsquare.shape)
-    ret = ops.multiply(xsquare, a_bd) + b_bd - y
+    ret = xsquare*a_bd + b_bd - y
 
 def run(model_optimizer, 
         num_epochs, 
