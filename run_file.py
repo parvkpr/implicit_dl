@@ -4,7 +4,9 @@ import itertools
 import numpy as np
 import pytest
 import matplotlib.pyplot as plt
+
 from needle.autograd import Tensor
+
 import needle.init as init
 
 import needle as ndl
@@ -22,8 +24,6 @@ class Parameter(Tensor):
 ### STEP 0 -- generate data ###
 def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.01):
     # Generate data: 100 points sampled from the quadratic curve listed above
-    #data_x = np.random.rand(1, num_points)
-    #noise = np.random.randn(1, num_points) * noise_factor
     data_x = init.rand(1, num_points, device=device)
     noise = init.randn(1, num_points, device=device) * noise_factor
     data_y = a * data_x**2 + b + noise
@@ -34,17 +34,10 @@ def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.01):
 
 def error_function(a, b, x, y):
     xsquare = ops.power_scalar(x, 2)
-    a_bd = ops.broadcast_to(a, xsquare.shape)
-    b_bd = ops.broadcast_to(b, xsquare.shape)
-    print()
-    print(type(xsquare.data))
-    print(type(a_bd.data))
-    print(type(b_bd.data))
-    print(type(y.data))
-    print()
-    print(xsquare * a_bd)
-    print()
-    ret = xsquare*a_bd + b_bd - y
+    a_bd = ops.broadcast_to(a.reshape((1,1)), xsquare.shape)
+    b_bd_1 = ops.broadcast_to(b.reshape((1,1)), xsquare.shape)
+    ret = xsquare*a_bd + b_bd_1 - y
+    return ret
 
 def run(model_optimizer, 
         num_epochs, 
@@ -59,11 +52,13 @@ def run(model_optimizer,
         a, x, y = aux_vars
         b = optim_vars
         b_star = implicit_layer(a)
-        #print(a*b_star)
-        loss = error_function(a, b_star, x, y).mean()
+        loss = error_function(b, b_star, x, y) #.mean()
+        numel = loss.shape[1]
+        loss = ops.summation(loss)
+        loss = ops.divide_scalar(loss, numel)
         loss.backward()
         model_optimizer.step()
-
+        print(a)
 
 if __name__=='__main__':
     data_x, data_y, x, y  = generate_data()
@@ -74,16 +69,12 @@ if __name__=='__main__':
     ax.set_ylabel('y')
 
     ## plot fig ## 
-    plt.show()
+    #plt.show()
     
-    a = Parameter(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))
-    b = Parameter(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))
+    a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))
     aux_vars = a, x, y
     optim_vars = b
-    print(x.shape)
-    print(y.shape)
-    print(x*y)
-    print(a*b)
     #raise
 
     model_optimizer = ndl.optim.Adam([a], lr=1e-3, weight_decay=1e-3)
@@ -97,6 +88,7 @@ if __name__=='__main__':
     num_epochs = 20
 
     run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
+    print("\nHEY LOOK MA WE MADE IT\n")
     
 
 
