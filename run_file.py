@@ -22,7 +22,7 @@ class Parameter(Tensor):
     """A special kind of tensor that represents parameters."""
 
 ### STEP 0 -- generate data ###
-def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.01):
+def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.001):
     # Generate data: 100 points sampled from the quadratic curve listed above
     data_x = init.rand(1, num_points, device=device)
     noise = init.randn(1, num_points, device=device) * noise_factor
@@ -34,9 +34,11 @@ def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.01):
 
 def error_function(a, b, x, y):
     xsquare = ops.power_scalar(x, 2)
+    #print(x.shape, xsquare.shape, y.shape)
     a_bd = ops.broadcast_to(a.reshape((1,1)), xsquare.shape)
     b_bd_1 = ops.broadcast_to(b.reshape((1,1)), xsquare.shape)
-    ret = xsquare*a_bd + b_bd_1 - y
+    ret = ops.power_scalar(xsquare*a_bd + b_bd_1 - y, 2)
+    #raise
     return ret
 
 def run(model_optimizer, 
@@ -51,8 +53,9 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         a, x, y = aux_vars
         b = optim_vars
-        b_star = implicit_layer(a)
-        loss = error_function(b, b_star, x, y) #.mean()
+        #b_star = implicit_layer(a)
+        b_star = b
+        loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
@@ -71,13 +74,13 @@ if __name__=='__main__':
     ## plot fig ## 
     #plt.show()
     
-    a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))
+    a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32")) * 5.0
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 0.5
     aux_vars = a, x, y
     optim_vars = b
     #raise
 
-    model_optimizer = ndl.optim.Adam([a], lr=1e-3, weight_decay=1e-3)
+    model_optimizer = ndl.optim.Adam([a], lr=1e-1, weight_decay=1e-3)
 
     opt = ndl.optim.InnerOptimizer(device='cpu')
     cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
@@ -85,7 +88,7 @@ if __name__=='__main__':
                                                             error_function)
     implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
 
-    num_epochs = 20
+    num_epochs = 10000
 
     run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
     print("\nHEY LOOK MA WE MADE IT\n")
