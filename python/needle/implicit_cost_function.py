@@ -1,4 +1,5 @@
 """cost function module"""
+from typing import Any
 import needle as ndl
 import numpy as np
 
@@ -15,6 +16,13 @@ class LinearCostFunction(CostFunction):
     """
     def __init__(self, aux_vars, optim_vars, cost_function):
         super().__init__(aux_vars, optim_vars, cost_function)
+
+    def __call__(self, x, *args: Any, **kwds: Any) -> Any:
+        ###
+        # TODO: Implment linear cost function
+        ###
+        #return ndl.ops.summation(self.optim_vars @ x - self.aux_vars[0], axis=(1,))
+        return np.linalg.norm((self.optim_vars.numpy() @ x - self.aux_vars[0]).numpy())
  
 
 
@@ -26,4 +34,8 @@ class NonLinearCostFunction(CostFunction):
     def __init__(self, aux_vars, optim_vars):
         super().__init__(aux_vars, optim_vars)
 
-
+    def __call__(self, a, *args: Any, **kwds: Any) -> Any:
+        ###
+        # TODO: Implment non linear cost function
+        ###
+        raise NotImplementedError("MOHAMAD PLZ")

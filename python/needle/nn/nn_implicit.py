@@ -25,5 +25,6 @@ class ImplicitLayer(Module):
     def forward(self, x:Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
         Z = ops.lsimplicit(self.inner_optimizer, self.cost_fn, self.implicit_grad_method, x)
+        #Z = ops.tanh(x)
         return Z
         ### END YOUR SOLUTION
