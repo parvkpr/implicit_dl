@@ -730,10 +730,14 @@ class LSImplicit(TensorOp):
         self.implicit_grad_method = implicit_grad_method
 
     def implicitDiff(self):
-        return 1.0
+        # This computes partial b* / partial a
+        _, x, _ = self.cost_fn.aux_vars
+        implicit_grad = - summation(x**2)/x.shape[1]
+        implicit_grad = implicit_grad.detach()
+        return implicit_grad
     
     def unrollDiff(self):
-        return 2.0 
+        raise NotImplementedError("Unrolling is not implemented")
     
     def compute_grad(self):
         if self.implicit_grad_method == "implicit":
@@ -748,8 +752,10 @@ class LSImplicit(TensorOp):
     def gradient(self, out_grad, node):
         cur_input = node.inputs[0]
         layer_grad = self.compute_grad()
-        #return out_grad @ layer_grad
-        return out_grad
+        #print(out_grad)
+        #print(layer_grad)
+        return out_grad * layer_grad
+        
 
 def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
     return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)

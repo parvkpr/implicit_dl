@@ -53,15 +53,16 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         a, x, y = aux_vars
         b = optim_vars
-        #b_star = implicit_layer(a)
-        b_star = b
+        b_star = implicit_layer(a)
+        #b_star = b
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
         loss.backward()
         model_optimizer.step()
-        print(a)
+    print("Final a and b")
+    print(a, b_star)
 
 if __name__=='__main__':
     data_x, data_y, x, y  = generate_data()
@@ -75,7 +76,7 @@ if __name__=='__main__':
     #plt.show()
     
     a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32")) * 5.0
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 0.5
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
     aux_vars = a, x, y
     optim_vars = b
     #raise
@@ -88,7 +89,7 @@ if __name__=='__main__':
                                                             error_function)
     implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
 
-    num_epochs = 10000
+    num_epochs = 1000
 
     run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
     print("\nHEY LOOK MA WE MADE IT\n")
