@@ -151,7 +151,7 @@ class DivScalar(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
-        rec_scalar = Tensor(1/self.scalar)
+        rec_scalar = Tensor(1/self.scalar, device=node.inputs[0].device)
         layer_grad = BroadcastTo(node.shape)(rec_scalar)
         grad_divscalar = EWiseMul()(out_grad, layer_grad)
         return grad_divscalar
@@ -224,6 +224,8 @@ class BroadcastTo(TensorOp):
 
     def gradient(self, out_grad, node):
         ### BEGIN YOUR SOLUTION
+        # print('this \n')
+        # print(out_grad)
         a = node.inputs[0]
         input_shape = a.shape[::-1]
         output_shape = out_grad.shape[::-1]
@@ -723,34 +725,40 @@ def conv(a, b, stride=1, padding=1):
 
 class LSImplicit(TensorOp):
     def __init__(self, opt, cost_fn, implicit_grad_method):
-        """
-        """
         self.opt = opt
         self.cost_fn = cost_fn
         self.implicit_grad_method = implicit_grad_method
 
-
     def implicitDiff(self):
-        return 1.0
+        # This computes partial b* / partial a
+        _, x, _ = self.cost_fn.aux_vars
+        implicit_grad = - summation(x**2)/x.shape[1]
+        implicit_grad = implicit_grad.detach()
+        return implicit_grad
     
     def unrollDiff(self):
-        return 2.0 
+        raise NotImplementedError("Unrolling is not implemented")
     
     def compute_grad(self):
         if self.implicit_grad_method == "implicit":
             return self.implicitDiff()
         elif self.implicit_grad_method == "unroll":
             return self.unrollDiff()
-    
+        
     def compute(self, x):
-        self.x_star = self.opt.solve(cost_fn=self.cost_fn)
-        return self.x_star 
+        self.x_star = array_api.solve(x, self.cost_fn)
+        return self.x_star
     
     def gradient(self, out_grad, node):
         cur_input = node.inputs[0]
         layer_grad = self.compute_grad()
-        return out_grad @ layer_grad
-
+        #print(out_grad)
+        #print(layer_grad)
+        return out_grad * layer_grad
+        
 
 def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
     return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)
+
+
+

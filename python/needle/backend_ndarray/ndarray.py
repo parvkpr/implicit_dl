@@ -518,6 +518,11 @@ class NDArray:
         out = NDArray.make(self.shape, device=self.device)
         self.device.ewise_log(self.compact()._handle, out._handle)
         return out
+    
+    def solve(self, cost_fn):
+        print("\n\n\n\nWE ARE IN HERE")
+        out = NDArray.make(self.shape, device=self.device)
+        return out
 
     def exp(self):
         out = NDArray.make(self.shape, device=self.device)
@@ -696,6 +701,31 @@ def maximum(a, b):
 def log(a):
     return a.log()
 
+
+def solve(a, cost_fn):
+    #from scipy.optimize import least_squares as ls
+    #vals = ls(cost_fn, a.numpy(), method='lm')
+    #print(cost_fn)
+    a, x, y = cost_fn.aux_vars
+    b = cost_fn.optim_vars
+
+    b_np = b.numpy()
+    x_np = x.numpy()
+    y_np = y.numpy()
+    a_np = a.numpy()
+
+    # move this to be a class var of cost_fn
+    num_iter = 1000
+    lr = 0.01
+    while num_iter > 0:
+        grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
+        b_np = b_np - lr*grad 
+        num_iter -= 1
+        #print(num_iter, b_np)
+    
+    #import warnings
+    #warnings.warn("Hw2 backend?")
+    return NDArray(b_np, device=a.device)
 
 def exp(a):
     return a.exp()
