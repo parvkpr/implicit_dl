@@ -769,8 +769,7 @@ def log(a):
 
 def solve(a, cost_fn, opt):
     return a.solve(cost_fn, opt)
-    ####import warnings
-    ####warnings.warn("Hw2 backend?")
+
 
 def exp(a):
     return a.exp()
