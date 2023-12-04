@@ -85,7 +85,8 @@ if __name__=='__main__':
     model_optimizer = ndl.optim.Adam([a], lr=1e-1, weight_decay=1e-3)
 
     #opt = ndl.optim.InnerOptimizer(device='cpu')
-    opt = "Linear" # or Nonlinear
+    #opt = "Linear" # or Nonlinear
+    opt = "Nonlinear" # or Nonlinear
     #opt = "None"
     cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
                                                             optim_vars, 
