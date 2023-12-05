@@ -746,7 +746,7 @@ class LSImplicit(TensorOp):
             return self.unrollDiff()
         
     def compute(self, x):
-        self.x_star = array_api.solve(x, self.cost_fn)
+        self.x_star = array_api.solve(x, self.cost_fn, self.opt)
         return self.x_star
     
     def gradient(self, out_grad, node):

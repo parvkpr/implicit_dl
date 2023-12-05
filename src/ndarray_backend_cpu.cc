@@ -420,6 +420,79 @@ void Matmul(const AlignedArray& a, const AlignedArray& b, AlignedArray* out, uin
   /// END SOLUTION
 }
 
+
+void LUDecomposition(const AlignedArray& a, AlignedArray* L, AlignedArray* U, uint32_t n) {
+
+	// Set lower triangular diagonal to 1
+	for (int k = 0; k < n; ++k) {
+		L->ptr[k*n+k] = 1;
+	}
+	for (int k = 0; k < n; ++k) {
+        // U matrix (upper triangular)
+        for (int j = k; j < n; ++j) {
+            U->ptr[k*n+j] = a.ptr[k*n+j];
+            for (int i = 0; i < k; ++i) {
+                U->ptr[k*n+j] -= L->ptr[k*n+i] * U->ptr[i*n+j];
+            }
+        }
+
+        // L matrix (lower triangular)
+        for (int i = k + 1; i < n; ++i) {
+            L->ptr[i*n+k] = a.ptr[i*n+k];
+            for (int j = 0; j < k; ++j) {
+                L->ptr[i*n+k] -= L->ptr[i*n+j] * U->ptr[j*n+k];
+            }
+            L->ptr[i*n+k] /= U->ptr[k*n+k];
+        }
+    }
+}
+void GaussNewton(const AlignedArray& a, AlignedArray* L, AlignedArray* U, uint32_t n) {
+// this function will call LU underneath it and do the iterative updates needed
+	std::cout<<"Inside GN baby boy";
+  // // Set lower triangular diagonal to 1
+	// for (int k = 0; k < n; ++k) {
+	// 	L->ptr[k*n+k] = 1;
+	// }
+	// for (int k = 0; k < n; ++k) {
+  //       // U matrix (upper triangular)
+  //       for (int j = k; j < n; ++j) {
+  //           U->ptr[k*n+j] = a.ptr[k*n+j];
+  //           for (int i = 0; i < k; ++i) {
+  //               U->ptr[k*n+j] -= L->ptr[k*n+i] * U->ptr[i*n+j];
+  //           }
+  //       }
+
+  //       // L matrix (lower triangular)
+  //       for (int i = k + 1; i < n; ++i) {
+  //           L->ptr[i*n+k] = a.ptr[i*n+k];
+  //           for (int j = 0; j < k; ++j) {
+  //               L->ptr[i*n+k] -= L->ptr[i*n+j] * U->ptr[j*n+k];
+  //           }
+  //           L->ptr[i*n+k] /= U->ptr[k*n+k];
+  //       }
+  //   }
+}
+
+void ForwardBackward(const AlignedArray& L, const AlignedArray& U, const AlignedArray& y,
+		                 AlignedArray* out, uint32_t n) {
+	for (int i = 0; i < n; ++i) {
+        out->ptr[i] = y.ptr[i];
+        for (int j = 0; j < i; ++j) {
+            out->ptr[i] -= L.ptr[i*n+j] * out->ptr[j];
+        }
+        out->ptr[i] /= L.ptr[i*n+i];
+    }
+
+	for (int i = n - 1; i >= 0; --i) {
+        out->ptr[i] = out->ptr[i];
+        for (int j = i + 1; j < n; ++j) {
+            out->ptr[i] -= U.ptr[i*n+j] * out->ptr[j];
+        }
+        out->ptr[i] /= U.ptr[i*n+i];
+    }
+
+}
+
 inline void AlignedDot(const float* __restrict__ a,
                        const float* __restrict__ b,
                        float* __restrict__ out) {
@@ -625,4 +698,8 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
 
   m.def("reduce_max", ReduceMax);
   m.def("reduce_sum", ReduceSum);
+
+  m.def("LU", LUDecomposition);
+  m.def("forward_backward", ForwardBackward);
+  m.def("GN", GaussNewton);
 }

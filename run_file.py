@@ -4,6 +4,7 @@ import itertools
 import numpy as np
 import pytest
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 from needle.autograd import Tensor
 
@@ -49,7 +50,7 @@ def run(model_optimizer,
         cost_fn,
         implicit_layer):
 
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         model_optimizer.reset_grad()
         a, x, y = aux_vars
         b = optim_vars
@@ -83,7 +84,10 @@ if __name__=='__main__':
 
     model_optimizer = ndl.optim.Adam([a], lr=1e-1, weight_decay=1e-3)
 
-    opt = ndl.optim.InnerOptimizer(device='cpu')
+    #opt = ndl.optim.InnerOptimizer(device='cpu')
+    #opt = "Linear" # or Nonlinear
+    opt = "Nonlinear" # or Nonlinear
+    #opt = "None"
     cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
                                                             optim_vars, 
                                                             error_function)

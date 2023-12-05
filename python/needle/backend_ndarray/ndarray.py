@@ -4,7 +4,7 @@ from functools import reduce
 import numpy as np
 from . import ndarray_backend_numpy
 from . import ndarray_backend_cpu
-
+import sympy as sp
 
 # math.prod not in Python 3.7
 def prod(x):
@@ -519,10 +519,121 @@ class NDArray:
         self.device.ewise_log(self.compact()._handle, out._handle)
         return out
     
-    def solve(self, cost_fn):
-        print("\n\n\n\nWE ARE IN HERE")
-        out = NDArray.make(self.shape, device=self.device)
-        return out
+    def solve(self, cost_fn, opt):
+        '''
+            Inner solver. Currently supports LU decomposition for linear problems and 
+            Gauss-Newton solver for nonlinear problems.
+        '''
+        #print("\n\n\n\nWE ARE IN HERE")
+        a1, x, y = cost_fn.aux_vars
+        b = cost_fn.optim_vars
+
+        b_np = b.numpy()
+        x_np = x.numpy()
+        y_np = y.numpy()
+        a_np = a1.numpy()
+
+        #print(cost_fn)
+        # Call either LU or GN based on cost_fn type
+        #print(type(cost_fn))
+        if(opt == "Linear"):
+            # LUx - b = y
+            # b = LUx - y
+
+            # x = U_inv(L_inv(y-b))
+
+            #a1 = NDArray(np.array([[1.,2.,3.][
+            A = np.array([[2, -1, 1],
+                          [-3, -1, 4],
+                          [-1, 1, 3]], dtype=float)
+            size = 6
+            A = np.random.randn(size,size)
+            #print(A)
+            a1 = NDArray(A, device=self.device).compact()
+            L = NDArray.make(a1.shape, device=self.device)
+            U = NDArray.make(a1.shape, device=self.device)
+            L.fill(0)
+            U.fill(0)
+
+            self.device.LU(a1._handle, L._handle, U._handle, a1.shape[0])
+
+            # TODO: Once we have higher dimensional problems
+            #self.device.LU(self.compact()._handle, L._handle, U._handle, a1.shape[0])
+            #assert np.allclose(A, L.numpy()@U.numpy(), atol=1e-6), "ISSUE IN LU DECOMPOSITION:\n{}\n{}".format(L,U)
+            y = np.random.randn(size)
+            y1 = NDArray(y, device=self.device).compact()
+            out = NDArray.make(y.shape, device=self.device)
+            print(y.shape)
+            self.device.forward_backward(L._handle, U._handle, y1._handle, out._handle, L.shape[0])
+
+            print(b_np)
+            print(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ y))
+            print(np.linalg.solve(A, y))
+            print(out)
+            assert np.allclose(np.linalg.solve(A, y), out.numpy(), rtol=10e-5)
+            assert np.allclose(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ y), out.numpy(), atol=10e-5)
+            # raise
+        elif(opt == "Nonlinear"):
+            # uses LU solver underneath to solve the linearized version of the problem
+            # the steps are:
+            # compute the residual using cost_fn para,s
+            # use the residual for computing the jacobian (implemented in device)
+            # now call Lu underneath to solve for this jacobian. You get delta from this
+            # do a param update based on this delta
+            
+            size = 2
+            A = np.random.randn(size,size)
+            y = np.random.randn(size)
+            x = np.random.randn(size)
+            A_d = NDArray(A, device=self.device).compact()
+            X_d = NDArray(x, device=self.device).compact()
+
+            # compute residuals: y - model(b, a, x)
+            # making an assumption the model rn
+            # also since all the called data is wrong, creating fake data here
+            op =  A[0, 0] * np.exp(-A[0, 1] * x) + A[1, 0] + A[1,1]
+            r = y - op
+            # print(A[1, :]) 
+            # print(A[0, :])
+            # print(A[2, :])  
+            print(r.shape)
+            print(y.shape)
+            print(op.shape)
+
+            # compute jacobian
+            # doesnt it depend on the cost function itself?
+            # exp_term = np.exp(-A[1, :] * x)
+            # for now call jacobian using other library?
+            # p1,p2,p3,p4 , x = sp.symbols('p1 p2 p3 p4 x')
+            # print(C)
+            # model_expr = p1 * sp.exp(-p2 * x) + p3 + p4
+            # jacobian_expr = [sp.diff(model_expr, param) for param in A.flatten()]
+            # print(jacobian_expr)
+            # J = np.vstack((
+            # exp_term,
+            # A[0, :] * x * exp_term,
+            # np.ones_like(x)  # derivative of A[2, :] with respect to itself is 1
+            # )).T
+            
+            # baseline
+            # print(J.shape)
+            # delta_params = np.linalg.lstsq(J.T @ J, J.T @ (r), rcond=None)
+            # print(delta_params)
+            y = np.random.randn(size)
+            y1 = NDArray(y, device=self.device).compact()
+            self.device.GN(A_d._handle, X_d._handle, X_d._handle, A_d.shape[0])
+            # b_np = self.device.GN()
+            raise
+        else:
+            lr = 0.1
+            for i in range(500):
+                grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
+                b_np = b_np - lr*grad 
+            
+        #out = NDArray.make(self.shape, device=self.device)
+        #raise RuntimeError("We'll get here")
+        return NDArray(b_np, device=self.device)
+        #return out
 
     def exp(self):
         out = NDArray.make(self.shape, device=self.device)
@@ -702,30 +813,9 @@ def log(a):
     return a.log()
 
 
-def solve(a, cost_fn):
-    #from scipy.optimize import least_squares as ls
-    #vals = ls(cost_fn, a.numpy(), method='lm')
-    #print(cost_fn)
-    a, x, y = cost_fn.aux_vars
-    b = cost_fn.optim_vars
+def solve(a, cost_fn, opt):
+    return a.solve(cost_fn, opt)
 
-    b_np = b.numpy()
-    x_np = x.numpy()
-    y_np = y.numpy()
-    a_np = a.numpy()
-
-    # move this to be a class var of cost_fn
-    num_iter = 1000
-    lr = 0.01
-    while num_iter > 0:
-        grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
-        b_np = b_np - lr*grad 
-        num_iter -= 1
-        #print(num_iter, b_np)
-    
-    #import warnings
-    #warnings.warn("Hw2 backend?")
-    return NDArray(b_np, device=a.device)
 
 def exp(a):
     return a.exp()
