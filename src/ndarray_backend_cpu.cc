@@ -446,6 +446,32 @@ void LUDecomposition(const AlignedArray& a, AlignedArray* L, AlignedArray* U, ui
         }
     }
 }
+void GaussNewton(const AlignedArray& a, AlignedArray* L, AlignedArray* U, uint32_t n) {
+// this function will call LU underneath it and do the iterative updates needed
+	std::cout<<"Inside GN baby boy";
+  // // Set lower triangular diagonal to 1
+	// for (int k = 0; k < n; ++k) {
+	// 	L->ptr[k*n+k] = 1;
+	// }
+	// for (int k = 0; k < n; ++k) {
+  //       // U matrix (upper triangular)
+  //       for (int j = k; j < n; ++j) {
+  //           U->ptr[k*n+j] = a.ptr[k*n+j];
+  //           for (int i = 0; i < k; ++i) {
+  //               U->ptr[k*n+j] -= L->ptr[k*n+i] * U->ptr[i*n+j];
+  //           }
+  //       }
+
+  //       // L matrix (lower triangular)
+  //       for (int i = k + 1; i < n; ++i) {
+  //           L->ptr[i*n+k] = a.ptr[i*n+k];
+  //           for (int j = 0; j < k; ++j) {
+  //               L->ptr[i*n+k] -= L->ptr[i*n+j] * U->ptr[j*n+k];
+  //           }
+  //           L->ptr[i*n+k] /= U->ptr[k*n+k];
+  //       }
+  //   }
+}
 
 void ForwardBackward(const AlignedArray& L, const AlignedArray& U, const AlignedArray& y,
 		                 AlignedArray* out, uint32_t n) {
@@ -675,4 +701,5 @@ PYBIND11_MODULE(ndarray_backend_cpu, m) {
 
   m.def("LU", LUDecomposition);
   m.def("forward_backward", ForwardBackward);
+  m.def("GN", GaussNewton);
 }
