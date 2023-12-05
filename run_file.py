@@ -54,8 +54,8 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         a, x, y = aux_vars
         b = optim_vars
-        b_star = implicit_layer(a)
-        #b_star = b
+        #b_star = implicit_layer(a)
+        b_star = b
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
@@ -77,7 +77,8 @@ if __name__=='__main__':
     #plt.show()
     
     a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32")) * 5.0
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
+    #b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 0.5
     aux_vars = a, x, y
     optim_vars = b
     #raise
@@ -86,7 +87,8 @@ if __name__=='__main__':
 
     #opt = ndl.optim.InnerOptimizer(device='cpu')
     #opt = "Linear" # or Nonlinear
-    opt = "Nonlinear" # or Nonlinear
+    #opt = "Nonlinear" # or Nonlinear
+    opt = "Scalar" # or Nonlinear
     #opt = "None"
     cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
                                                             optim_vars, 

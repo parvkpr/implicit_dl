@@ -524,54 +524,104 @@ class NDArray:
             Inner solver. Currently supports LU decomposition for linear problems and 
             Gauss-Newton solver for nonlinear problems.
         '''
-        #print("\n\n\n\nWE ARE IN HERE")
-        a1, x, y = cost_fn.aux_vars
-        b = cost_fn.optim_vars
+        ##a1, x, y = cost_fn.aux_vars
+        ##b = cost_fn.optim_vars
 
-        b_np = b.numpy()
+        ##b_np = b.numpy()
+        ##x_np = x.numpy()
+        ##y_np = y.numpy()
+        ##a_np = a1.numpy()
+
+
+        y, A, B = cost_fn.aux_vars
+        x = cost_fn.optim_vars
+
         x_np = x.numpy()
+        A_np = A.numpy()
+        B_np = B.numpy()
         y_np = y.numpy()
-        a_np = a1.numpy()
 
         #print(cost_fn)
         # Call either LU or GN based on cost_fn type
         #print(type(cost_fn))
         if(opt == "Linear"):
+            print("\nIN SOLVE\n")
             # LUx - b = y
             # b = LUx - y
 
             # x = U_inv(L_inv(y-b))
 
-            #a1 = NDArray(np.array([[1.,2.,3.][
-            A = np.array([[2, -1, 1],
-                          [-3, -1, 4],
-                          [-1, 1, 3]], dtype=float)
-            size = 6
-            A = np.random.randn(size,size)
+            ##a1 = NDArray(np.array([[1.,2.,3.][
+            #A = np.array([[2, -1, 1],
+            #              [-3, -1, 4],
+            #              [-1, 1, 3]])
+            #size = 6
+            #A = np.random.randn(size,size)
             #print(A)
-            a1 = NDArray(A, device=self.device).compact()
-            L = NDArray.make(a1.shape, device=self.device)
-            U = NDArray.make(a1.shape, device=self.device)
+            #a1 = NDArray(A, device=self.device).compact()
+            temp = A@A.transpose()
+            L = NDArray.make(temp.shape, device=self.device)
+            U = NDArray.make(temp.shape, device=self.device)
             L.fill(0)
             U.fill(0)
+            print(y)
 
-            self.device.LU(a1._handle, L._handle, U._handle, a1.shape[0])
+            #self.device.LU(y._handle, L._handle, U._handle, y.shape[0])
+            print(self.shape)
+            print(A.shape)
+            print(A.transpose().shape)
+            print((A@A.transpose()).shape)
+            #self.device.LU(self.compact()._handle, L._handle, U._handle, y.shape[0])
+            temp = NDArray((A@A.transpose()).numpy(), device=self.device)
+            self.device.LU(temp._handle, L._handle, U._handle, temp.shape[0])
+            #print()
+            #print()
+            #print(temp)
+            #print(L)
+            #print(U)
+            #print()
+            #print()
+            #raise
 
             # TODO: Once we have higher dimensional problems
             #self.device.LU(self.compact()._handle, L._handle, U._handle, a1.shape[0])
             #assert np.allclose(A, L.numpy()@U.numpy(), atol=1e-6), "ISSUE IN LU DECOMPOSITION:\n{}\n{}".format(L,U)
-            y = np.random.randn(size)
-            y1 = NDArray(y, device=self.device).compact()
-            out = NDArray.make(y.shape, device=self.device)
-            print(y.shape)
-            self.device.forward_backward(L._handle, U._handle, y1._handle, out._handle, L.shape[0])
+            #y = np.random.randn(size)
+            #y1 = NDArray(y, device=self.device).compact()
+            out = NDArray.make(x.shape, device=self.device)
+            #print(y.shape)
+            #print(type(self.compact()))
+            temp_x = x.reshape((2,1))
+            print(y.shape, B.shape)
+            temp_y = (B - y.reshape((1,1)).broadcast_to(B.shape)).transpose()
+            print(temp_y.shape)
+            #raise
+            print(temp_x.shape)
+            print(A.shape)
+            target = NDArray((A@temp_y).numpy(), device=self.device)
+            print(target.shape)
+            #raise
+            #self.device.forward_backward(L._handle, U._handle, y1._handle, out._handle, L.shape[0])
+            #self.device.forward_backward(L._handle, U._handle, self.compact()._handle, out._handle, L.shape[0])
+            self.device.forward_backward(L._handle, U._handle, target.compact()._handle, out._handle, L.shape[0])
 
-            print(b_np)
-            print(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ y))
-            print(np.linalg.solve(A, y))
+            #print(b_np)
+            print()
+            print(U.shape, L.shape, y.shape)
+            print(x.shape)
+            temp_x = x.reshape((2,1))
+            #print(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ x.reshape((2,1))))
+            print(L.numpy().shape, temp_x.shape)
+            print(np.linalg.inv(L.numpy()).shape, temp_x.shape)
+            print(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ temp_x.numpy()))
+            #print(np.linalg.solve(A, y))
             print(out)
-            assert np.allclose(np.linalg.solve(A, y), out.numpy(), rtol=10e-5)
-            assert np.allclose(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ y), out.numpy(), atol=10e-5)
+            return out
+            out = b_np
+            out = b_np
+            print()
+            #assert np.allclose(np.linalg.solve(A, y), out.numpy(), rtol=1e-5)
+            #assert np.allclose(np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ y), out.numpy(), rtol=1e-4)
             # raise
         elif(opt == "Nonlinear"):
             # uses LU solver underneath to solve the linearized version of the problem
@@ -602,18 +652,18 @@ class NDArray:
 
             # compute jacobian
             # doesnt it depend on the cost function itself?
-            # exp_term = np.exp(-A[1, :] * x)
-            # for now call jacobian using other library?
-            # p1,p2,p3,p4 , x = sp.symbols('p1 p2 p3 p4 x')
-            # print(C)
-            # model_expr = p1 * sp.exp(-p2 * x) + p3 + p4
-            # jacobian_expr = [sp.diff(model_expr, param) for param in A.flatten()]
-            # print(jacobian_expr)
-            # J = np.vstack((
-            # exp_term,
-            # A[0, :] * x * exp_term,
-            # np.ones_like(x)  # derivative of A[2, :] with respect to itself is 1
-            # )).T
+            #exp_term = np.exp(-A[1, :] * x)
+            #for now call jacobian using other library?
+            #p1,p2,p3,p4 , x = sp.symbols('p1 p2 p3 p4 x')
+            #print(C)
+            #model_expr = p1 * sp.exp(-p2 * x) + p3 + p4
+            #jacobian_expr = [sp.diff(model_expr, param) for param in A.flatten()]
+            #print(jacobian_expr)
+            #J = np.vstack((
+            #exp_term,
+            #A[0, :] * x * exp_term,
+            #np.ones_like(x)  # derivative of A[2, :] with respect to itself is 1
+            #)).T
             
             # baseline
             # print(J.shape)
@@ -624,11 +674,20 @@ class NDArray:
             self.device.GN(A_d._handle, X_d._handle, X_d._handle, A_d.shape[0])
             # b_np = self.device.GN()
             raise
-        else:
+        elif(opt == 'Scalar'):
             lr = 0.1
             for i in range(500):
                 grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
                 b_np = b_np - lr*grad 
+                #print(b_np)
+            #print()
+            #print()
+            #print(b_np)
+            #print()
+            #print()
+            #raise
+        else:
+            raise NotImplementedError("Select Linear, Nonlinear, or Scalar")
             
         #out = NDArray.make(self.shape, device=self.device)
         #raise RuntimeError("We'll get here")

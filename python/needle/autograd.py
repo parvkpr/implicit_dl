@@ -441,3 +441,4 @@ def sum_node_list(node_list):
     from functools import reduce
 
     return reduce(add, node_list)
+

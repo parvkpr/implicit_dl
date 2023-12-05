@@ -732,9 +732,26 @@ class LSImplicit(TensorOp):
     def implicitDiff(self):
         # This computes partial b* / partial a
         _, x, _ = self.cost_fn.aux_vars
-        implicit_grad = - summation(x**2)/x.shape[1]
-        implicit_grad = implicit_grad.detach()
-        return implicit_grad
+        if(self.opt == 'Scalar'):
+            implicit_grad = - summation(x**2)/x.shape[1]
+            implicit_grad = implicit_grad.detach()
+            return implicit_grad
+            #print("\nHERE\n")
+            #raise
+        elif(self.opt == 'Linear'):
+            _, A, B = self.cost_fn.aux_vars
+            _A, _B = A.numpy(), B.numpy()
+
+            import numpy as np
+            print(_A.shape, _B.shape)
+            #implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T @ _B
+            implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T #@ _B
+            #grad = (A.transpose() @ A).inverse() @ A.transpose() @ B
+            #pass
+        elif(self.opt == 'Nonlinear'):
+            pass
+
+        return implicit_grad.T
     
     def unrollDiff(self):
         raise NotImplementedError("Unrolling is not implemented")
@@ -746,15 +763,71 @@ class LSImplicit(TensorOp):
             return self.unrollDiff()
         
     def compute(self, x):
-        self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+        '''
+            ||Ax - By||_2^2
+            A, B are data matrics
+            x, y are variables to optimize
+
+            y comes from neural network, optimized in outer loop
+            x is optimized here
+        '''
+        if(self.opt == 'Linear'):
+            self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+        else:
+            # uses LU solver underneath to solve the linearized version of
+            # the problem
+            # the steps are:
+            # compute the residual using cost_fn para,s
+            # use the residual for computing the jacobian (implemented in device)
+            # now call Lu underneath to solve for this jacobian.
+            # You get delta from this
+            # do a param update based on this delta
+
+            import warnings
+
+            # Compute residual
+
+            # Linearize?
+
+            # array_api.solve(linearized)
+            self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+
+
+            warnings.warn("HW2 BACKEND?")
+            pass
         return self.x_star
     
     def gradient(self, out_grad, node):
         cur_input = node.inputs[0]
-        layer_grad = self.compute_grad()
-        #print(out_grad)
-        #print(layer_grad)
-        return out_grad * layer_grad
+        #layer_grad = self.compute_grad()
+
+        if(self.opt == 'Scalar'):
+            layer_grad = self.compute_grad()
+            #print("LAYER GRAD: {}".format(layer_grad))
+            #print("OUT GRAD: {}".format(out_grad))
+            return out_grad * layer_grad
+        elif(self.opt == 'Linear'):
+            '''
+                Compute partial x_star/partial y
+            '''
+            layer_grad = self.compute_grad()
+            #print(layer_grad)
+            layer_grad = Tensor(layer_grad, device=out_grad.device)
+            print(layer_grad.shape)
+            print(out_grad.shape)
+            print(node.inputs[0].shape)
+            print((out_grad.reshape((1,2)) @ layer_grad).shape)
+            #raise
+            #print(layer_grad)
+            #raise
+        elif(self.opt == 'Nonlinear'):
+            pass
+        else:
+            raise NotImplementedError("Pick either Linear or Nonlinear")
+
+        print("GRAD SHOULD BE: {}".format(summation(out_grad.reshape((1,2)) @ layer_grad)))
+        return summation(out_grad.reshape((1,2)) @ layer_grad)
+        #return out_grad.reshape((1,2)) @ layer_grad
         
 
 def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
