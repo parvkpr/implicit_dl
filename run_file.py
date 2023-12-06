@@ -23,7 +23,7 @@ class Parameter(Tensor):
     """A special kind of tensor that represents parameters."""
 
 ### STEP 0 -- generate data ###
-def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.001):
+def generate_data(num_points=1000, a=1, b=0.5, noise_factor=0.01):
     # Generate data: 100 points sampled from the quadratic curve listed above
     data_x = init.rand(1, num_points, device=device)
     noise = init.randn(1, num_points, device=device) * noise_factor
@@ -54,8 +54,8 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         a, x, y = aux_vars
         b = optim_vars
-        #b_star = implicit_layer(a)
-        b_star = b
+        b_star = implicit_layer(a)
+        #b_star = b
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
@@ -64,6 +64,7 @@ def run(model_optimizer,
         model_optimizer.step()
     print("Final a and b")
     print(a, b_star)
+    return a, b_star
 
 if __name__=='__main__':
     data_x, data_y, x, y  = generate_data()
@@ -78,7 +79,7 @@ if __name__=='__main__':
     
     a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32")) * 5.0
     #b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 0.5
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
     aux_vars = a, x, y
     optim_vars = b
     #raise
@@ -97,8 +98,9 @@ if __name__=='__main__':
 
     num_epochs = 1000
 
-    run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
+    a, b_star = run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
     print("\nHEY LOOK MA WE MADE IT\n")
-    
+    print("A ERROR: {}".format(np.linalg.norm(a.numpy() - 1)))
+    print("B ERROR: {}".format(np.linalg.norm(b_star.numpy() - 0.5)))
 
 

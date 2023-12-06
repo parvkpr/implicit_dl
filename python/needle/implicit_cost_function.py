@@ -35,9 +35,9 @@ class NonLinearCostFunction(CostFunction):
         super().__init__(aux_vars, optim_vars, cost_function)
 
     def __call__(self, a, *args: Any, **kwds: Any) -> Any:
-        return self.cost_function(a)
+        return self.cost_function(self.w, a)
 
     #def grad(self, a, *args: Any, **kwds: Any) -> Any:
-    def grad(self, a, *args: Any, **kwds: Any) -> Any:
-        return self.cost_function.grad(a)
+    def grad(self, w, a, *args: Any, **kwds: Any) -> Any:
+        return self.cost_function.grad(w, a)
 

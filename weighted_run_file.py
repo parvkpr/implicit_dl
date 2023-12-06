@@ -57,41 +57,50 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         x, y, a = aux_vars
         w1, w2, b = optim_vars
-        b_star = implicit_layer(b)
+        b_star = implicit_layer(w1, w2, b)
+        #(b_star**2).backward()
+        #print(w1.grad)
+        #print(w2.grad)
+        #raise
         #b_star = b
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
         loss.backward()
+        print(w1.grad, w2.grad)
         model_optimizer.step()
     print("Final a and b")
     print(a, b_star)
 
 
 class cost():
-    def __init__(self, w):
-        self.w = w
+    def __init__(self):
+        pass
 
 class cost1(cost):
-    def __init__(self, w):
-        super().__init__(w)
+    def __init__(self):
+        super().__init__()
+        self.w = None
 
-    def __call__(self, x):
-        return self.w*x**2
+    def __call__(self, w, x):
+        return x**2
 
-    def grad(self, x):
-        return self.w*2*x
+    def grad(self, w, x):
+        #print("IN COST 1: {}".format(w))
+        return 2*x
 
 class cost2(cost):
-    def __init__(self, w):
-        super().__init__(w)
+    def __init__(self):
+        super().__init__()
 
-    def __call__(self, x):
-        return self.w*(x+1)**2
+    def __call__(self, w, x):
+        return (x+1)**2
 
-    def grad(self, x):
-        return self.w*2*(x+1)
+    def grad(self, w, x):
+        #print(w)
+        #print("IN COST 2: {}".format(w))
+        return 2*(x+1)
 
 
 if __name__=='__main__':
@@ -105,7 +114,7 @@ if __name__=='__main__':
     #raise
 
     # Initial weights
-    w1 = Parameter(Tensor(np.array([2.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
+    w1 = Parameter(Tensor(np.array([4.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
     w2 = Parameter(Tensor(np.array([2.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
     print("INITIAL WEIGHTS: {}".format([w1,w1]))
     #raise
@@ -132,11 +141,11 @@ if __name__=='__main__':
     #                                                        optim_vars, 
     #                                                        error_function)
     cost_fn = [
-            ndl.implicit_cost_function.NonLinearCostFunction(aux_vars, optim_vars, cost1(w1)),
-            ndl.implicit_cost_function.NonLinearCostFunction(aux_vars, optim_vars, cost2(w1))
+            ndl.implicit_cost_function.NonLinearCostFunction(aux_vars, optim_vars, cost1()),
+            ndl.implicit_cost_function.NonLinearCostFunction(aux_vars, optim_vars, cost2())
     ]
 
-    implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
+    implicit_layer = ndl.nn.WeightImplicitLayer(opt, cost_fn, "implicit")
 
     num_epochs = 1000
 

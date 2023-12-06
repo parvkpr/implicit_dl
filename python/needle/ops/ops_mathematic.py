@@ -748,10 +748,8 @@ class LSImplicit(TensorOp):
             implicit_grad = - summation(x**2)/x.shape[1]
             implicit_grad = implicit_grad.detach()
             return implicit_grad
-            #print("\nHERE\n")
-            #raise
         elif(self.opt == 'Linear'):
-            _, x, _ = self.cost_fn.aux_vars
+            #_, x, _ = self.cost_fn.aux_vars
             _, A, B = self.cost_fn.aux_vars
             _A, _B = A.numpy(), B.numpy()
 
@@ -760,27 +758,33 @@ class LSImplicit(TensorOp):
             #implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T @ _B
 
             #TODO Support this in needle
-            import numpy as np
             #print(inverse(A.transpose() @ A))
             #implicit_grad = inverse(A.transpose() @ A) @ A.transpose()
             #print(implicit_grad)
             #raise
             #raise
+            import numpy as np
             implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T #@ _B
-            print("\nIMPLICIT GRAD:\n")
-            print(implicit_grad)
+            #print(implicit_grad.transpose().shape)
+            #print(implicit_grad.shape)
+            #print(_A.T.shape)
+            #print(A.shape)
+            #print(A.shape)
+            return Tensor(init.ones(*A.shape), device=A.device)
+            #return Tensor(init.ones(A.shape), device=A.device)
+            #raise
+            #print("\nIMPLICIT GRAD:\n")
+            #print(implicit_grad)
             import numpy as np
             imgrad = np.zeros(implicit_grad.shape)
             imgrad = Tensor(imgrad, device=A.device)
 
-            #raise
-            #implicit_grad
-            #grad = (A.transpose() @ A).inverse() @ A.transpose() @ B
-            #pass
         elif(self.opt == 'Nonlinear'):
             pass
         elif(self.opt == 'Weights'):
-            return 0
+            print("\nBUT WE MADE IT HERE?\n")
+            #TODO: Actually calculate gradients...
+            return Tensor(init.ones(len(self.cost_fn)+1,), device=self.cost_fn[0].w.device)
             #implicit_grad = ...
 
         #return implicit_grad.T
@@ -808,19 +812,153 @@ class LSImplicit(TensorOp):
         if(self.opt == 'Linear'):
             self.x_star = array_api.solve(x, self.cost_fn, self.opt)
         elif(self.opt == 'Weights'):
-            #print(type(x))
+
+            # Take single optimization step
             grad1 = self.cost_fn[0].grad(x)
             grad2 = self.cost_fn[1].grad(x)
-            #print(type((self.cost_fn[0].cost_function.w * grad1).data))
-            #print(grad1.device)
-            #print(add(grad1, x))
-            self.x_star = x.numpy() - \
-                          0.1*(self.cost_fn[0].cost_function.w.numpy()*grad1.numpy() + \
-                               self.cost_fn[1].cost_function.w.numpy()*grad2.numpy())
-            #print("X STAR: {}".format(self.x_star))
-            #print(NDArray(self.x_star, device=x.device))
+            self.x_star = x.numpy() - 0.1*(grad1.numpy() + grad2.numpy())
+
             return NDArray(self.x_star, device=x.device)
+            #raise NotImplementedError("WERE HERE")
+            #pass
+        else:
+            # uses LU solver underneath to solve the linearized version of
+            # the problem
+            # the steps are:
+            # compute the residual using cost_fn para,s
+            # use the residual for computing the jacobian (implemented in device)
+            # now call Lu underneath to solve for this jacobian.
+            # You get delta from this
+            # do a param update based on this delta
+
+            import warnings
+
+            # Compute residual
+
+            # Linearize?
+
+            # array_api.solve(linearized)
+            self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+
+
+            warnings.warn("HW2 BACKEND?")
+            pass
+        return self.x_star
+    
+    def gradient(self, out_grad, node):
+        #print("\n\nBACKWRAD\n\n")
+        #raise
+        cur_input = node.inputs[0]
+        #layer_grad = self.compute_grad()
+        import numpy as np
+        #return Tensor(np.array([0]), device=out_grad.device)
+        #return init.zeros(node.inputs[0].shape)
+
+        if(self.opt == 'Scalar'):
+            layer_grad = self.compute_grad()
+            #return out_grad * layer_grad
+            return out_grad * 0
+
+        elif(self.opt == 'Linear'):
+            '''
+                Compute partial x_star/partial y
+            '''
+            layer_grad = self.compute_grad()
+            #print(layer_grad)
+            layer_grad = Tensor(layer_grad, device=out_grad.device)
+            #print(out_grad)
+            #raise
+
+        elif(self.opt == 'Nonlinear'):
+            pass
+        elif(self.opt == 'Weights'):
+            #layer_grad = self.compute_grad()
+            layer_grad = self.compute_grad()
+            #print(layer_grad)
+            #print(out_grad.shape)
+            #print(layer_grad.shape)
+            print("\nOUTPUT GRADIENT: {}".format(layer_grad * out_grad.broadcast_to(layer_grad.shape)))
+            print(node.inputs)
             raise
+            return layer_grad * out_grad.broadcast_to(layer_grad.shape)
+        else:
+            raise NotImplementedError("Pick either Linear or Nonlinear")
+
+        #print(layer_grad)
+        #print(out_grad)
+        #print(node.inputs[0].shape)
+        #print(out_grad.shape)
+        #print(summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad))
+        #raise
+        return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
+        
+def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
+    return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)
+
+
+class WeightLSImplicit(TensorOp):
+    def __init__(self, opt, cost_fn, implicit_grad_method):
+        self.opt = opt
+        self.cost_fn = cost_fn
+        self.implicit_grad_method = implicit_grad_method
+
+    def implicitDiff(self):
+        # This computes partial b* / partial a
+        if(self.opt == 'Scalar'):
+            _, x, _ = self.cost_fn.aux_vars
+            implicit_grad = - summation(x**2)/x.shape[1]
+            implicit_grad = implicit_grad.detach()
+            return implicit_grad
+        elif(self.opt == 'Linear'):
+            _, A, B = self.cost_fn.aux_vars
+            _A, _B = A.numpy(), B.numpy()
+
+            implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T #@ _B
+            imgrad = np.zeros(implicit_grad.shape)
+            imgrad = Tensor(imgrad, device=A.device)
+
+        elif(self.opt == 'Nonlinear'):
+            pass
+        elif(self.opt == 'Weights'):
+            print("\nBUT WE MADE IT HERE?\n")
+            #TODO: Actually calculate gradients...
+            return Tensor(init.ones(len(self.cost_fn)+1,), device=self.cost_fn[0].w.device)
+
+        #return implicit_grad.T
+        #return imgrad.transpose()
+        return implicit_grad.transpose()
+    
+    def unrollDiff(self):
+        raise NotImplementedError("Unrolling is not implemented")
+    
+    def compute_grad(self):
+        if self.implicit_grad_method == "implicit":
+            return self.implicitDiff()
+        elif self.implicit_grad_method == "unroll":
+            return self.unrollDiff()
+        
+    def compute(self, w1, w2, x):
+        '''
+            ||Ax - By||_2^2
+            A, B are data matrics
+            x, y are variables to optimize
+
+            y comes from neural network, optimized in outer loop
+            x is optimized here
+        '''
+        if(self.opt == 'Linear'):
+            self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+        elif(self.opt == 'Weights'):
+
+            # Take single optimization step
+            print(w1)
+            grad1 = self.cost_fn[0].grad(w1, x)
+            grad2 = self.cost_fn[1].grad(w2, x)
+            self.x_star = x.numpy() - 0.1*(w1.numpy()*grad1.numpy() + w2.numpy()*grad2.numpy())
+
+            #print("X STAR: {}".format(self.x_star))
+            #return self.x_star
+            return NDArray(self.x_star, device=x.device)
             #raise NotImplementedError("WERE HERE")
             #pass
         else:
@@ -867,29 +1005,40 @@ class LSImplicit(TensorOp):
             '''
             layer_grad = self.compute_grad()
             layer_grad = Tensor(layer_grad, device=out_grad.device)
-            print(out_grad)
             raise
 
         elif(self.opt == 'Nonlinear'):
             pass
         elif(self.opt == 'Weights'):
             #layer_grad = self.compute_grad()
-            return Tensor(np.array([1.]), device=out_grad.device)
-            pass
+            #print(node.inputs)
+            #print(out_grad)
+            #print(out_grad * node.inputs)
+            #print(multiply(node.inputs, out_grad))
+            #print(multiply(out_grad, node.inputs))
+            return multiply(out_grad, node.inputs[0]), \
+                   multiply(out_grad, node.inputs[1]), \
+                   multiply(out_grad, node.inputs[2])
+            raise
+            layer_grad = self.compute_grad()
+            #print(layer_grad)
+            #print(out_grad.shape)
+            #print(layer_grad.shape)
+            print("\nOUTPUT GRADIENT: {}".format(layer_grad * out_grad.broadcast_to(layer_grad.shape)))
+            #print(node.inputs)
+            #raise
+            return layer_grad * out_grad.broadcast_to(layer_grad.shape)
         else:
             raise NotImplementedError("Pick either Linear or Nonlinear")
 
         #print(layer_grad)
         #print(out_grad)
-        print(node.inputs[0].shape)
-        print(out_grad.shape)
-        print(summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad))
+        #print(node.inputs[0].shape)
+        #print(out_grad.shape)
+        #print(summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad))
         #raise
         return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
-        
-
-def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
-    return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)
 
 
-
+def weight_lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, w1, w2, x):
+    return WeightLSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(w1, w2, x)
