@@ -12,7 +12,7 @@ class CostFunction():
 
 class LinearCostFunction(CostFunction):
     """ 
-        This class defines a linear inner loop objective in the form sum_i ||w(\phi) (A_i x - b)||_2 
+        This class defines a linear inner loop objective in the form sum_i ||w(phi) (A_i x - b)||_2 
     """
     def __init__(self, aux_vars, optim_vars, cost_function):
         super().__init__(aux_vars, optim_vars, cost_function)
@@ -28,14 +28,16 @@ class LinearCostFunction(CostFunction):
 
 class NonLinearCostFunction(CostFunction):
     """ 
-        This class defines a non linear inner loop objective in the form sum_i || f_i(x) - z||_w(\phi)
+        This class defines a non linear inner loop objective in the form sum_i || f_i(x) - z||_w(phi)
         where f_i is a non linear function 
     """
-    def __init__(self, aux_vars, optim_vars):
-        super().__init__(aux_vars, optim_vars)
+    def __init__(self, aux_vars, optim_vars, cost_function):
+        super().__init__(aux_vars, optim_vars, cost_function)
 
     def __call__(self, a, *args: Any, **kwds: Any) -> Any:
-        ###
-        # TODO: Implment non linear cost function
-        ###
-        raise NotImplementedError("MOHAMAD PLZ")
+        return self.cost_function(a)
+
+    #def grad(self, a, *args: Any, **kwds: Any) -> Any:
+    def grad(self, a, *args: Any, **kwds: Any) -> Any:
+        return self.cost_function.grad(a)
+

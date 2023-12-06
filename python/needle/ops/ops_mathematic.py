@@ -723,6 +723,18 @@ def conv(a, b, stride=1, padding=1):
     return Conv(stride, padding)(a, b)
 
 
+class Inverse(TensorOp):
+    def compute(self, a):
+        return array_api.inverse(a)
+
+    def gradient(self, out_grad, node):
+        return NotImplementedError("PLEASE DON'T NEED THIS")
+
+
+def inverse(a):
+    return Inverse()(a)
+
+
 class LSImplicit(TensorOp):
     def __init__(self, opt, cost_fn, implicit_grad_method):
         self.opt = opt
@@ -731,27 +743,49 @@ class LSImplicit(TensorOp):
 
     def implicitDiff(self):
         # This computes partial b* / partial a
-        _, x, _ = self.cost_fn.aux_vars
         if(self.opt == 'Scalar'):
+            _, x, _ = self.cost_fn.aux_vars
             implicit_grad = - summation(x**2)/x.shape[1]
             implicit_grad = implicit_grad.detach()
             return implicit_grad
             #print("\nHERE\n")
             #raise
         elif(self.opt == 'Linear'):
+            _, x, _ = self.cost_fn.aux_vars
             _, A, B = self.cost_fn.aux_vars
             _A, _B = A.numpy(), B.numpy()
 
-            import numpy as np
-            print(_A.shape, _B.shape)
+            #import numpy as np
+            #print(_A.shape, _B.shape)
             #implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T @ _B
+
+            #TODO Support this in needle
+            import numpy as np
+            #print(inverse(A.transpose() @ A))
+            #implicit_grad = inverse(A.transpose() @ A) @ A.transpose()
+            #print(implicit_grad)
+            #raise
+            #raise
             implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T #@ _B
+            print("\nIMPLICIT GRAD:\n")
+            print(implicit_grad)
+            import numpy as np
+            imgrad = np.zeros(implicit_grad.shape)
+            imgrad = Tensor(imgrad, device=A.device)
+
+            #raise
+            #implicit_grad
             #grad = (A.transpose() @ A).inverse() @ A.transpose() @ B
             #pass
         elif(self.opt == 'Nonlinear'):
             pass
+        elif(self.opt == 'Weights'):
+            return 0
+            #implicit_grad = ...
 
-        return implicit_grad.T
+        #return implicit_grad.T
+        #return imgrad.transpose()
+        return implicit_grad.transpose()
     
     def unrollDiff(self):
         raise NotImplementedError("Unrolling is not implemented")
@@ -773,6 +807,22 @@ class LSImplicit(TensorOp):
         '''
         if(self.opt == 'Linear'):
             self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+        elif(self.opt == 'Weights'):
+            #print(type(x))
+            grad1 = self.cost_fn[0].grad(x)
+            grad2 = self.cost_fn[1].grad(x)
+            #print(type((self.cost_fn[0].cost_function.w * grad1).data))
+            #print(grad1.device)
+            #print(add(grad1, x))
+            self.x_star = x.numpy() - \
+                          0.1*(self.cost_fn[0].cost_function.w.numpy()*grad1.numpy() + \
+                               self.cost_fn[1].cost_function.w.numpy()*grad2.numpy())
+            #print("X STAR: {}".format(self.x_star))
+            #print(NDArray(self.x_star, device=x.device))
+            return NDArray(self.x_star, device=x.device)
+            raise
+            #raise NotImplementedError("WERE HERE")
+            #pass
         else:
             # uses LU solver underneath to solve the linearized version of
             # the problem
@@ -798,36 +848,44 @@ class LSImplicit(TensorOp):
         return self.x_star
     
     def gradient(self, out_grad, node):
+        #print("\n\nBACKWRAD\n\n")
+        #raise
         cur_input = node.inputs[0]
         #layer_grad = self.compute_grad()
+        import numpy as np
+        #return Tensor(np.array([0]), device=out_grad.device)
+        #return init.zeros(node.inputs[0].shape)
 
         if(self.opt == 'Scalar'):
             layer_grad = self.compute_grad()
-            #print("LAYER GRAD: {}".format(layer_grad))
-            #print("OUT GRAD: {}".format(out_grad))
-            return out_grad * layer_grad
+            #return out_grad * layer_grad
+            return out_grad * 0
+
         elif(self.opt == 'Linear'):
             '''
                 Compute partial x_star/partial y
             '''
             layer_grad = self.compute_grad()
-            #print(layer_grad)
             layer_grad = Tensor(layer_grad, device=out_grad.device)
-            print(layer_grad.shape)
-            print(out_grad.shape)
-            print(node.inputs[0].shape)
-            print((out_grad.reshape((1,2)) @ layer_grad).shape)
-            #raise
-            #print(layer_grad)
-            #raise
+            print(out_grad)
+            raise
+
         elif(self.opt == 'Nonlinear'):
+            pass
+        elif(self.opt == 'Weights'):
+            #layer_grad = self.compute_grad()
+            return Tensor(np.array([1.]), device=out_grad.device)
             pass
         else:
             raise NotImplementedError("Pick either Linear or Nonlinear")
 
-        print("GRAD SHOULD BE: {}".format(summation(out_grad.reshape((1,2)) @ layer_grad)))
-        return summation(out_grad.reshape((1,2)) @ layer_grad)
-        #return out_grad.reshape((1,2)) @ layer_grad
+        #print(layer_grad)
+        #print(out_grad)
+        print(node.inputs[0].shape)
+        print(out_grad.shape)
+        print(summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad))
+        #raise
+        return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
         
 
 def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
