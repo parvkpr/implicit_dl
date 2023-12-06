@@ -38,6 +38,6 @@ class NonLinearCostFunction(CostFunction):
         return self.cost_function(self.w, a)
 
     #def grad(self, a, *args: Any, **kwds: Any) -> Any:
-    def grad(self, w, a, *args: Any, **kwds: Any) -> Any:
-        return self.cost_function.grad(w, a)
+    def grad(self, a, *args: Any, **kwds: Any) -> Any:
+        return self.cost_function.grad(a)
 

@@ -951,10 +951,13 @@ class WeightLSImplicit(TensorOp):
         elif(self.opt == 'Weights'):
 
             # Take single optimization step
-            print(w1)
-            grad1 = self.cost_fn[0].grad(w1, x)
-            grad2 = self.cost_fn[1].grad(w2, x)
-            self.x_star = x.numpy() - 0.1*(w1.numpy()*grad1.numpy() + w2.numpy()*grad2.numpy())
+            #print(w1)
+            #grad1 = self.cost_fn[0].grad(w1, x)
+            #grad2 = self.cost_fn[1].grad(w2, x)
+            #grad1 = self.cost_fn[0].grad(x)
+            #grad2 = self.cost_fn[1].grad(x)
+            self.x_star = -w2/(w1+w2)
+            #self.x_star = x.numpy() - 0.1*(w1.numpy()*grad1.numpy() + w2.numpy()*grad2.numpy())
 
             #print("X STAR: {}".format(self.x_star))
             #return self.x_star
@@ -1016,8 +1019,12 @@ class WeightLSImplicit(TensorOp):
             #print(out_grad * node.inputs)
             #print(multiply(node.inputs, out_grad))
             #print(multiply(out_grad, node.inputs))
-            return multiply(out_grad, node.inputs[0]), \
-                   multiply(out_grad, node.inputs[1]), \
+            gradw1 = negate(power_scalar(node.inputs[0] * node.inputs[1], -1)) * self.x_star
+            gradw2 = negate(power_scalar(node.inputs[0] * node.inputs[1], -1)) * (self.x_star+1)
+            #gradw1 = node.inputs[0] - node.inputs[0]
+            #gradw2 = gradw1 - gradw1
+            return multiply(out_grad, gradw1), \
+                   multiply(out_grad, gradw2), \
                    multiply(out_grad, node.inputs[2])
             raise
             layer_grad = self.compute_grad()

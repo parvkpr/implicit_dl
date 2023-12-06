@@ -68,10 +68,13 @@ def run(model_optimizer,
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
         loss.backward()
-        print(w1.grad, w2.grad)
+        print(w1, w2)
         model_optimizer.step()
     print("Final a and b")
     print(a, b_star)
+    print("FINAL WEIGHTS:")
+    print("W1: {}".format(w1))
+    print("W2: {}".format(w2))
 
 
 class cost():
@@ -83,28 +86,25 @@ class cost1(cost):
         super().__init__()
         self.w = None
 
-    def __call__(self, w, x):
+    def __call__(self, x):
         return x**2
 
-    def grad(self, w, x):
-        #print("IN COST 1: {}".format(w))
+    def grad(self, x):
         return 2*x
 
 class cost2(cost):
     def __init__(self):
         super().__init__()
 
-    def __call__(self, w, x):
+    def __call__(self, x):
         return (x+1)**2
 
-    def grad(self, w, x):
-        #print(w)
-        #print("IN COST 2: {}".format(w))
+    def grad(self, x):
         return 2*(x+1)
 
 
 if __name__=='__main__':
-    data_x, data_y, A, B, a, b  = generate_data()
+    data_x, data_y, A, B, a, b  = generate_data(b=-1)
     # Plot the data
     fig, ax = plt.subplots()
     ax.scatter(data_x.numpy(), data_y.numpy())
