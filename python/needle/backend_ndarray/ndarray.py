@@ -572,23 +572,13 @@ class NDArray:
             U.fill(0)
             self.device.LU(A._handle, L._handle, U._handle, A.shape[0])
 
-            # Compare to numpy (FOR TESTING)
-            ###assert np.allclose(temp.numpy(), L.numpy()@U.numpy(), atol=1e-6), \
-            ###       "ISSUE IN LU DECOMPOSITION:\n{}\n{}".format(L,U)
-
             # Forward-backward substitution
             out = NDArray.make(self.shape, device=self.device)
             self.device.forward_backward(L._handle, U._handle, b._handle,
                                          out._handle, L.shape[0])
 
-            # Compare to numpy (FOR TESTING)
-            ###assert np.allclose(np.linalg.solve(temp.numpy(), target.numpy())[:,0],
-            ###                   out.numpy(), rtol=1e-3)
-            ###assert np.allclose(
-            ###    (np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ target.numpy()))[:,0],
-            ###                   out.numpy(), rtol=1e-3)
-
         elif(opt == 'Scalar'):
+            # Perform gradient descent
             lr = 0.01
             out = self.compact().reshape((1,1))
             for i in range(500):

@@ -770,38 +770,42 @@ class LSImplicit(TensorOp):
         
     def compute(self, x, y, A, B):
         '''
-            ||Ax - By||_2^2
             A, B are data matrics
             x, y are variables to optimize
 
-            y comes from neural network, optimized in outer loop
-            x is optimized here
+            y is optimized in the outer loop
+            x is optimized here to find x_star.
         '''
-        #y, A, B = self.cost_fn.aux_vars
-        #x = self.cost_fn.optim_vars
-        #x = NDArray(x.numpy())
-
         if(self.opt == 'Scalar'):
+            ###
+            # Solving Ax^2 + b = y
+            ###
             x_b = x.reshape((1,1)).broadcast_to(A.shape)
             left_side = x_b * (A**2)
             right_side = B
 
         elif(self.opt == 'Linear'):
+            ###
+            # Solving Ay + x = B
+            # Solve A^TAy = A^T(B - x)
+            ###
             # Left side of equation
             left_side = A@A.permute((1,0))
 
             # Right side of equation
-            b_minus_y = B - x.reshape((1,1)).broadcast_to(B.shape)
-            right_side = A@b_minus_y.permute((1,0))
+            b_minus_x = B - x.reshape((1,1)).broadcast_to(B.shape)
+            right_side = A@b_minus_x.permute((1,0))
 
 
         # Solve equation
         self.x_star = array_api.solve(y, left_side, right_side, self.opt)
-
         return self.x_star
 
-    
     def gradient(self, out_grad, node):
+        '''
+            We are only interested in the gradient for our variable of interest and so only
+            that gradient is officially supported through this implementation
+        '''
         cur_input = node.inputs[0]
 
         if(self.opt == 'Scalar'):
@@ -830,12 +834,12 @@ class WeightLSImplicit(TensorOp):
 
     def compute(self, x, w1, w2):
         '''
-            ||Ax - By||_2^2
-            A, B are data matrics
-            x, y are variables to optimize
+            Solving x_star = w1*c1(x) + w2*c2(x)
+            Finds minimum of both weighted cost functions using gradient descent
 
-            y comes from neural network, optimized in outer loop
-            x is optimized here
+            Gradient descent is done here istead of array_api.solve because our gradient
+            is calculated with cost function evaluations of x_star, which does not match
+            the form for our other cases.
         '''
         self.x_star = x
         ws = [w1, w2]
@@ -847,6 +851,12 @@ class WeightLSImplicit(TensorOp):
 
     
     def gradient(self, out_grad, node):
+        '''
+            Implicit gradient of weights and data.
+            Implicit gradients are specific to the input cost functions
+            grad_w1 = -x_star/(w1+w2)
+            grad_w2 = -(x_star+1)/(w1+w2)
+        '''
         gradw1 = negate(power_scalar(node.inputs[1] * node.inputs[2], -1)) * self.x_star
         gradw2 = negate(power_scalar(node.inputs[1] * node.inputs[2], -1)) * (self.x_star+1)
         return multiply(out_grad, node.inputs[0]), \

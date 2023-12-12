@@ -23,8 +23,12 @@ class ImplicitLayer(Module):
 
     def forward(self, x:Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
+        # Cost function auxiliary variables are used in 
         _, A, B = self.cost_fn.aux_vars
+
+        # Cost function optim vars are used as initial guess for target value
         y = self.cost_fn.optim_vars
+
         Z = ops.lsimplicit(self.inner_optimizer, self.implicit_grad_method, x, y, A, B)
         return Z
         ### END YOUR SOLUTION
