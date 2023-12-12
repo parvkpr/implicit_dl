@@ -23,7 +23,9 @@ class ImplicitLayer(Module):
 
     def forward(self, x:Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        Z = ops.lsimplicit(self.inner_optimizer, self.cost_fn, self.implicit_grad_method, x)
+        _, A, B = self.cost_fn.aux_vars
+        y = self.cost_fn.optim_vars
+        Z = ops.lsimplicit(self.inner_optimizer, self.implicit_grad_method, x, y, A, B)
         return Z
         ### END YOUR SOLUTION
 
@@ -41,10 +43,9 @@ class WeightImplicitLayer(Module):
         self.dtype = dtype
 
 
-    def forward(self, x:Tensor, *ws) -> Tensor:
+    def forward(self, w1, w2, x:Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        print(ws)
         Z = ops.weight_lsimplicit(self.inner_optimizer, self.cost_fn,
-                                  self.implicit_grad_method, x, ws)
+                                  self.implicit_grad_method, x, w1, w2)
         return Z
         ### END YOUR SOLUTION

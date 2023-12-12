@@ -64,6 +64,8 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         x, y, a = aux_vars
         w1, w2, b = optim_vars
+        #print(w1, w2, b)
+        #raise
         b_star = implicit_layer(w1, w2, b)
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
@@ -126,7 +128,6 @@ if __name__=='__main__':
     #raise
 
     # Initial weights
-    print(np.random.rand(1))
     np.random.seed(42)
     s_w1s = [2., 4., 8., 1.]
     s_w2s = [4., 2., 2., 8.]
@@ -138,11 +139,10 @@ if __name__=='__main__':
         w1 = Parameter(Tensor(np.array([s_w1s[i]]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
         w2 = Parameter(Tensor(np.array([s_w2s[i]]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
         print("INITIAL WEIGHTS: {}".format([w1,w2]))
-        #raise
 
         #x = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))*5
         b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))*b
-        a = Parameter(Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))*1.)
+        a = Parameter(Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))*2.)
         #aux_vars = x, A, B
         aux_vars = A, B, a
         optim_vars = w1, w2, b
@@ -150,15 +150,12 @@ if __name__=='__main__':
         #optim_vars = [optim_vars1, optim_vars2]
         #raise
 
-        #model_optimizer = ndl.optim.Adam([w1, w2], lr=1e-3, weight_decay=1e-3)
+        #model_optimizer = ndl.optim.Adam([w1, w2], lr=1e-2, weight_decay=1e-3)
         model_optimizer = ndl.optim.Adam([w1, w2, a], lr=1e-2, weight_decay=1e-3)
 
         print(-w2/(w1+w2))
 
         #opt = ndl.optim.InnerOptimizer(device='cpu')
-        #opt = "Linear" # or Nonlinear
-        #opt = "Nonlinear" # or Nonlinear
-        #opt = "Scalar" # or Nonlinear
         opt = "Weights" # or Nonlinear
         #opt = "None"
         #cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
@@ -171,7 +168,7 @@ if __name__=='__main__':
 
         implicit_layer = ndl.nn.WeightImplicitLayer(opt, cost_fn, "implicit")
 
-        num_epochs = 5000
+        num_epochs = 1000
 
         w1s, w2s = run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
         bstar = -np.array(w1s)/(np.array(w1s) + np.array(w2s))

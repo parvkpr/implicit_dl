@@ -552,7 +552,7 @@ class NDArray:
         return out
     
 
-    def solve(self, cost_fn, opt):
+    def solve(self, A, b, opt):
         '''
             Inner solver. Currently supports LU decomposition for linear problems and 
             Gauss-Newton solver for nonlinear problems.
@@ -561,83 +561,44 @@ class NDArray:
 
         # Call either LU or GN based on cost_fn type
         if(opt == "Linear"):
-            # Need A, B, y as input...
-            y, A, B = cost_fn.aux_vars
-            x = cost_fn.optim_vars
-            # LUx - b = y
-            # b = LUx - y
-            # x = U_inv(L_inv(y-b))
-
+            ###
             # Solve AT@Ax = AT@(b-y)
-            temp = NDArray((A@A.transpose()).numpy(), device=self.device)
-            L = NDArray.make(temp.shape, device=self.device)
-            U = NDArray.make(temp.shape, device=self.device)
+            ###
+
+            # LU Decomposition of AT@A
+            L = NDArray.make(A.shape, device=self.device)
+            U = NDArray.make(A.shape, device=self.device)
             L.fill(0)
             U.fill(0)
-            self.device.LU(temp._handle, L._handle, U._handle, temp.shape[0])
+            self.device.LU(A._handle, L._handle, U._handle, A.shape[0])
 
-            # Compare to numpy
+            # Compare to numpy (FOR TESTING)
             ###assert np.allclose(temp.numpy(), L.numpy()@U.numpy(), atol=1e-6), \
             ###       "ISSUE IN LU DECOMPOSITION:\n{}\n{}".format(L,U)
 
-            # TODO: Once we have higher dimensional problems
-            out = NDArray.make(x.shape, device=self.device)
-            temp_x = x.reshape((x.shape[0],1))
-            temp_y = (B - y.reshape((1,1)).broadcast_to(B.shape)).transpose()
-            target = NDArray((A@temp_y).numpy(), device=self.device)
-            self.device.forward_backward(L._handle, U._handle, target.compact()._handle,
+            # Forward-backward substitution
+            out = NDArray.make(self.shape, device=self.device)
+            self.device.forward_backward(L._handle, U._handle, b._handle,
                                          out._handle, L.shape[0])
 
-            # Compare to numpy
+            # Compare to numpy (FOR TESTING)
             ###assert np.allclose(np.linalg.solve(temp.numpy(), target.numpy())[:,0],
             ###                   out.numpy(), rtol=1e-3)
             ###assert np.allclose(
             ###    (np.linalg.inv(U.numpy()) @ (np.linalg.inv(L.numpy()) @ target.numpy()))[:,0],
             ###                   out.numpy(), rtol=1e-3)
-            return out
 
         elif(opt == 'Scalar'):
-            lr = 0.1
-            a, x, y = cost_fn.aux_vars
-
-            # Need a, b, x, y
-            b = cost_fn.optim_vars
-            #b_np = b.numpy()
-            #x_np = x.numpy()
-            #y_np = y.numpy()
-            #a_np = a1.numpy()
-            print(type(a))
-            print(type(b))
-            print(type(x))
-            print(type(y))
-            #print(a, x, y, b)
-            #raise
-            print(self.compact())
-            print(b.shape, a.shape, x.shape, y.shape)
-            b_fin = b.reshape((1,1)).broadcast_to((1, x.shape[1]))
-            a_fin = a.reshape((1,1)).broadcast_to((1, x.shape[1]))
-
-            print(b_fin.shape, y.shape)
-            print(a_fin.shape, x.shape)
+            lr = 0.01
+            out = self.compact().reshape((1,1))
             for i in range(500):
-                out = NDArray.make(x.shape, device=self.device)
-                self.device.ewise_mul(a_fin._handle, x._handle, out._handle)
-                #print(out)
-                #raise
-
-                b_fin = b.reshape((1,1)).broadcast_to((1, x.shape[1]))
-
-                grad = 2*(b_fin - (y - a_fin*x**2))
-                b = b - lr*grad
-            #raise
-            #for i in range(500):
-            #    grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
-            #    b_np = b_np - lr*grad 
+                grad = 2*(out.broadcast_to(A.shape) - (b - A)).sum(axis=1)/A.shape[1]
+                out = out - lr*grad.reshape((1,1))
 
         else:
-            raise NotImplementedError("Select Linear, Nonlinear, or Scalar")
+            raise NotImplementedError("Select Linear or Scalar")
             
-        return NDArray(b_np, device=self.device)
+        return out.compact()
 
     def exp(self):
         out = NDArray.make(self.shape, device=self.device)
@@ -817,8 +778,8 @@ def log(a):
     return a.log()
 
 
-def solve(a, cost_fn, opt):
-    return a.solve(cost_fn, opt)
+def solve(a, A, b, opt):
+    return a.solve(A, b, opt)
 
 
 def exp(a):

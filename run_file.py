@@ -54,7 +54,7 @@ def run(model_optimizer,
     for epoch in tqdm(range(num_epochs)):
         model_optimizer.reset_grad()
         a, x, y = aux_vars
-        b = optim_vars
+        #b = optim_vars
         b_star = implicit_layer(a)
         #b_star = b
         loss = error_function(a, b_star, x, y) #.mean()
@@ -94,10 +94,13 @@ if __name__=='__main__':
 
         a, b_star, a_val, b_val = run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
         print("\nHEY LOOK MA WE MADE IT\n")
+        #print("TARGET A: {} GOT A: {}".format(a_val, a))
+        #print("TARGET b: {} GOT b: {}".format(b_val, b_star))
         print("A ERROR: {}".format(np.linalg.norm(a.numpy() - 1)))
         print("B ERROR: {}".format(np.linalg.norm(b_star.numpy() - 0.5)))
         all_as.append(a_val)
         all_bs.append(b_val)
+        #raise
 
     #xs = np.linspace(data_x.numpy().min(), data_x.numpy().max())
     #fig, ax = plt.subplots()

@@ -736,9 +736,8 @@ def inverse(a):
 
 
 class LSImplicit(TensorOp):
-    def __init__(self, opt, cost_fn, implicit_grad_method):
+    def __init__(self, opt, implicit_grad_method):
         self.opt = opt
-        self.cost_fn = cost_fn
         self.implicit_grad_method = implicit_grad_method
 
     def implicitDiff(self):
@@ -769,7 +768,7 @@ class LSImplicit(TensorOp):
         elif self.implicit_grad_method == "unroll":
             return self.unrollDiff()
         
-    def compute(self, x):
+    def compute(self, x, y, A, B):
         '''
             ||Ax - By||_2^2
             A, B are data matrics
@@ -778,50 +777,48 @@ class LSImplicit(TensorOp):
             y comes from neural network, optimized in outer loop
             x is optimized here
         '''
-        print(type(self.cost_fn))
-        y, A, B = self.cost_fn.aux_vars
-        x = self.cost_fn.optim_vars
-        x = NDArray(x.numpy())
-        #print(type(y))
-        #print(type(A))
-        #print(type(B))
-        #raise
-        A = NDArray(A.numpy())
-        B = NDArray(B.numpy())
-        y = NDArray(y.numpy())
-        print(type(x))
-        print(self.opt)
-        print()
-        #print()
-        #raise
-        #print(type(A))
-        #print(type(B))
-        #print(type(y))
-        print()
-        print()
-        self.cost_fn.aux_vars = y, A, B
-        self.cost_fn.optim_vars = x
-        self.x_star = array_api.solve(x, self.cost_fn, self.opt)
+        #y, A, B = self.cost_fn.aux_vars
+        #x = self.cost_fn.optim_vars
+        #x = NDArray(x.numpy())
+
+        if(self.opt == 'Scalar'):
+            x_b = x.reshape((1,1)).broadcast_to(A.shape)
+            left_side = x_b * (A**2)
+            right_side = B
+
+        elif(self.opt == 'Linear'):
+            # Left side of equation
+            left_side = A@A.permute((1,0))
+
+            # Right side of equation
+            b_minus_y = B - x.reshape((1,1)).broadcast_to(B.shape)
+            right_side = A@b_minus_y.permute((1,0))
+
+
+        # Solve equation
+        self.x_star = array_api.solve(y, left_side, right_side, self.opt)
+
         return self.x_star
+
     
     def gradient(self, out_grad, node):
         cur_input = node.inputs[0]
 
         if(self.opt == 'Scalar'):
-            layer_grad = self.compute_grad()
-            return out_grad
+            out_grads = [Tensor(init.zeros(*ipt.shape), device=out_grad.device) for ipt in node.inputs]
+            return out_grads
 
         elif(self.opt == 'Linear'):
             '''
                 Compute partial x_star/partial y
             '''
-            layer_grad = self.compute_grad()
-            layer_grad = Tensor(layer_grad, device=out_grad.device)
+            out_grads = [Tensor(init.zeros(*ipt.shape), device=out_grad.device) for ipt in node.inputs]
+            return out_grads
 
         return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
         
-def lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x):
-    return LSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x)
+def lsimplicit(inner_optimizer, implicit_grad_method, x, y, A, B):
+    return LSImplicit(inner_optimizer, implicit_grad_method)(x, y, A, B)
 
 
 class WeightLSImplicit(TensorOp):
@@ -831,7 +828,7 @@ class WeightLSImplicit(TensorOp):
         self.implicit_grad_method = implicit_grad_method
 
 
-    def compute(self, x, *ws):
+    def compute(self, x, w1, w2):
         '''
             ||Ax - By||_2^2
             A, B are data matrics
@@ -841,29 +838,22 @@ class WeightLSImplicit(TensorOp):
             x is optimized here
         '''
         self.x_star = x
+        ws = [w1, w2]
         for i in range(100):
-            total_grad = sum([ws[i]*self.cost_fn[i](self.x_star) for i in range(len(self.cost_fn))])
-            #print(total_grad)
-            #raise
-            #for j in range(len(self.cost_fn)):
-            #    total_grad += 
-            #grad1 = self.cost_fn[0].grad(self.x_star)
-            #grad2 = self.cost_fn[1].grad(self.x_star)
-            #self.x_star = self.x_star - 0.01*(w1*grad1 + w2*grad2)
-            self.x_star = self.x_star - 0.01*total_grad
+            grad1 = self.cost_fn[0].grad(self.x_star)
+            grad2 = self.cost_fn[1].grad(self.x_star)
+            self.x_star = self.x_star - 0.01*(w1*grad1 + w2*grad2)
         return self.x_star
 
     
     def gradient(self, out_grad, node):
+        gradw1 = negate(power_scalar(node.inputs[1] * node.inputs[2], -1)) * self.x_star
+        gradw2 = negate(power_scalar(node.inputs[1] * node.inputs[2], -1)) * (self.x_star+1)
+        return multiply(out_grad, node.inputs[0]), \
+               multiply(out_grad, gradw1), \
+               multiply(out_grad, gradw2)
+               
 
-        gradw1 = negate(power_scalar(node.inputs[0] * node.inputs[1], -1)) * self.x_star
-        gradw2 = negate(power_scalar(node.inputs[0] * node.inputs[1], -1)) * (self.x_star+1)
-        return multiply(out_grad, gradw1), \
-               multiply(out_grad, gradw2), \
-               multiply(out_grad, node.inputs[2])
 
-
-def weight_lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x, *ws):
-    print("Weights: {}".format(tuple(ws)))
-    #return WeightLSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x, TensorTuple(ws))
-    return WeightLSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x, tuple(ws))
+def weight_lsimplicit(inner_optimizer, cost_fn, implicit_grad_method, x, w1, w2):
+    return WeightLSImplicit(inner_optimizer, cost_fn, implicit_grad_method)(x, w1, w2)
