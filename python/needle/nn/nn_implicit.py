@@ -21,13 +21,12 @@ class ImplicitLayer(Module):
         self.dtype = dtype
 
 
-
     def forward(self, x:Tensor) -> Tensor:
         ### BEGIN YOUR SOLUTION
         Z = ops.lsimplicit(self.inner_optimizer, self.cost_fn, self.implicit_grad_method, x)
-        #Z = ops.tanh(x)
         return Z
         ### END YOUR SOLUTION
+
 
 class WeightImplicitLayer(Module):
     """
@@ -42,16 +41,10 @@ class WeightImplicitLayer(Module):
         self.dtype = dtype
 
 
-
-    def forward(self, w1:Tensor, w2:Tensor, x:Tensor) -> Tensor:
+    def forward(self, x:Tensor, *ws) -> Tensor:
         ### BEGIN YOUR SOLUTION
-        # Set weights in each cost function
-        #print("\nWEIGHT IMPLICIT\n")
-        #self.cost_fn[0].w = w1
-        #self.cost_fn[1].w = w2
-        #Z = ops.lsimplicit(self.inner_optimizer, self.cost_fn, self.implicit_grad_method, x)
+        print(ws)
         Z = ops.weight_lsimplicit(self.inner_optimizer, self.cost_fn,
-                                  self.implicit_grad_method, w1, w2, x)
-        #Z = ops.tanh(x)
+                                  self.implicit_grad_method, x, ws)
         return Z
         ### END YOUR SOLUTION

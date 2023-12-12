@@ -561,6 +561,7 @@ class NDArray:
 
         # Call either LU or GN based on cost_fn type
         if(opt == "Linear"):
+            # Need A, B, y as input...
             y, A, B = cost_fn.aux_vars
             x = cost_fn.optim_vars
             # LUx - b = y
@@ -595,56 +596,43 @@ class NDArray:
             ###                   out.numpy(), rtol=1e-3)
             return out
 
-        elif(opt == "Nonlinear"):
-            # uses LU solver underneath to solve the linearized version of the problem
-            # the steps are:
-            # compute the residual using cost_fn para,s
-            # use the residual for computing the jacobian (implemented in device)
-            # now call Lu underneath to solve for this jacobian. You get delta from this
-            # do a param update based on this delta
-            
-            size = 2
-            A = np.random.randn(size,size)
-            y = np.random.randn(size)
-            x = np.random.randn(size)
-            A_d = NDArray(A, device=self.device).compact()
-            X_d = NDArray(x, device=self.device).compact()
-
-            # compute residuals: y - model(b, a, x)
-            # making an assumption the model rn
-            # also since all the called data is wrong, creating fake data here
-            op =  A[0, 0] * np.exp(-A[0, 1] * x) + A[1, 0] + A[1,1]
-            r = y - op
-            raise
         elif(opt == 'Scalar'):
             lr = 0.1
-            a1, x, y = cost_fn.aux_vars
+            a, x, y = cost_fn.aux_vars
+
+            # Need a, b, x, y
             b = cost_fn.optim_vars
-            b_np = b.numpy()
-            x_np = x.numpy()
-            y_np = y.numpy()
-            a_np = a1.numpy()
+            #b_np = b.numpy()
+            #x_np = x.numpy()
+            #y_np = y.numpy()
+            #a_np = a1.numpy()
+            print(type(a))
+            print(type(b))
+            print(type(x))
+            print(type(y))
+            #print(a, x, y, b)
+            #raise
+            print(self.compact())
+            print(b.shape, a.shape, x.shape, y.shape)
+            b_fin = b.reshape((1,1)).broadcast_to((1, x.shape[1]))
+            a_fin = a.reshape((1,1)).broadcast_to((1, x.shape[1]))
+
+            print(b_fin.shape, y.shape)
+            print(a_fin.shape, x.shape)
             for i in range(500):
-                grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
-                b_np = b_np - lr*grad 
+                out = NDArray.make(x.shape, device=self.device)
+                self.device.ewise_mul(a_fin._handle, x._handle, out._handle)
+                #print(out)
+                #raise
 
-        elif(opt == 'MotionPlanning'):
-            w1, w2, obj1, obj2 = cost_fn.aux_vars
-            theta = cost_fn.optim_vars
+                b_fin = b.reshape((1,1)).broadcast_to((1, x.shape[1]))
 
-            temp = NDArray((A@A.transpose()).numpy(), device=self.device)
-            L = NDArray.make(temp.shape, device=self.device)
-            U = NDArray.make(temp.shape, device=self.device)
-            L.fill(0)
-            U.fill(0)
-
-            # obj1 and obj2 are coordinates of obstacles
-            # w1, w2 are cost function weights that we would like to optimize
-            # theta is our N step trajectory shape: 2 x N
-
-            t
-            
-            pass
+                grad = 2*(b_fin - (y - a_fin*x**2))
+                b = b - lr*grad
+            #raise
+            #for i in range(500):
+            #    grad = 2*np.sum(b_np - (y_np - a_np*x_np**2))/x_np.shape[1]
+            #    b_np = b_np - lr*grad 
 
         else:
             raise NotImplementedError("Select Linear, Nonlinear, or Scalar")

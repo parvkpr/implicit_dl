@@ -23,7 +23,7 @@ class Parameter(Tensor):
     """A special kind of tensor that represents parameters."""
 
 ### STEP 0 -- generate data ###
-def generate_data(num_points=1000, a=1, b=0.5, noise_factor=0.01):
+def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.05):
     # Generate data: 100 points sampled from the quadratic curve listed above
     data_x = init.rand(1, num_points, device=device)
     noise = init.randn(1, num_points, device=device) * noise_factor
@@ -50,6 +50,7 @@ def run(model_optimizer,
         cost_fn,
         implicit_layer):
 
+    a_vals, b_vals = [aux_vars[0].numpy()[0]], [optim_vars.numpy()[0]]
     for epoch in tqdm(range(num_epochs)):
         model_optimizer.reset_grad()
         a, x, y = aux_vars
@@ -62,45 +63,78 @@ def run(model_optimizer,
         loss = ops.divide_scalar(loss, numel)
         loss.backward()
         model_optimizer.step()
-    print("Final a and b")
-    print(a, b_star)
-    return a, b_star
+        a_vals.append(a.numpy()[0])
+        b_vals.append(b_star.numpy()[0])
+
+    return a, b_star, a_vals, b_vals
 
 if __name__=='__main__':
     data_x, data_y, x, y  = generate_data()
     # Plot the data
-    fig, ax = plt.subplots()
-    ax.scatter(data_x.numpy(), data_y.numpy())
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
+    
+    all_as, all_bs = [], []
+    for a_val, b_val in zip([-2, 0, 2, 5], [-2, 0, 2, 5]):
+        a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(),
+                   dtype="float32")) * a_val
+        b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(),
+                   dtype="float32")) * b_val
+        aux_vars = a, x, y
+        optim_vars = b
+
+        model_optimizer = ndl.optim.Adam([a], lr=1e-1, weight_decay=1e-3)
+
+        opt = "Scalar" # or Nonlinear
+        #opt = "Linear" # or Nonlinear
+        cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
+                                                                optim_vars, 
+                                                                error_function)
+        implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
+
+        num_epochs = 100
+
+        a, b_star, a_val, b_val = run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
+        print("\nHEY LOOK MA WE MADE IT\n")
+        print("A ERROR: {}".format(np.linalg.norm(a.numpy() - 1)))
+        print("B ERROR: {}".format(np.linalg.norm(b_star.numpy() - 0.5)))
+        all_as.append(a_val)
+        all_bs.append(b_val)
+
+    #xs = np.linspace(data_x.numpy().min(), data_x.numpy().max())
+    #fig, ax = plt.subplots()
+    #ax.scatter(data_x.numpy(), data_y.numpy(), label="Data")
+    #ax.plot(xs, a.numpy()*xs**2 + b_star.numpy(), color='red', lw=3, label="Learned Function")
+    #ax.legend(loc='best', fontsize=14)
+    #ax.set_title("Curve Fitting", fontsize=16)
+    #ax.set_xlabel('x', fontsize=16)
+    #ax.set_ylabel('y', fontsize=16)
+    #plt.savefig("scalar_example.png")
+    #plt.savefig("scalar_example.pdf")
 
     ## plot fig ## 
-    #plt.show()
-    
-    a = Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32")) * 5.0
-    #b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32")) * 5.0
-    aux_vars = a, x, y
-    optim_vars = b
-    #raise
+    fig, ax = plt.subplots()
+    ax.plot(all_as[0], lw=3)
+    ax.plot(all_as[1], lw=3)
+    ax.plot(all_as[2], lw=3)
+    ax.plot(all_as[3], lw=3)
+    ax.axhline(1., color='#888888', lw=3, linestyle='--', label="Ground Truth")
+    ax.set_xlabel("Epoch", fontsize=14)
+    ax.set_ylabel(r"$a$ Value", fontsize=14)
+    ax.set_title(r"Convergence of $a$", fontsize=16)
+    ax.legend(loc='best', fontsize=14)
+    plt.savefig("a_convergence.png")
+    plt.savefig("a_convergence.pdf")
 
-    model_optimizer = ndl.optim.Adam([a], lr=1e-1, weight_decay=1e-3)
-
-    #opt = ndl.optim.InnerOptimizer(device='cpu')
-    #opt = "Linear" # or Nonlinear
-    #opt = "Nonlinear" # or Nonlinear
-    opt = "Scalar" # or Nonlinear
-    #opt = "None"
-    cost_fn = ndl.implicit_cost_function.LinearCostFunction(aux_vars, 
-                                                            optim_vars, 
-                                                            error_function)
-    implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
-
-    num_epochs = 1000
-
-    a, b_star = run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
-    print("\nHEY LOOK MA WE MADE IT\n")
-    print("A ERROR: {}".format(np.linalg.norm(a.numpy() - 1)))
-    print("B ERROR: {}".format(np.linalg.norm(b_star.numpy() - 0.5)))
-
+    fig, ax = plt.subplots()
+    ax.plot(all_bs[0], lw=3)
+    ax.plot(all_bs[1], lw=3)
+    ax.plot(all_bs[2], lw=3)
+    ax.plot(all_bs[3], lw=3)
+    ax.axhline(0.5, color='#888888', lw=3, linestyle='--', label="Ground Truth")
+    ax.set_xlabel("Epoch", fontsize=14)
+    ax.set_ylabel(r"$b$ Value", fontsize=14)
+    ax.set_title(r"Convergence of $b$", fontsize=16)
+    ax.legend(loc='best', fontsize=14)
+    plt.savefig("b_convergence.png")
+    plt.savefig("b_convergence.pdf")
+    plt.show()
 

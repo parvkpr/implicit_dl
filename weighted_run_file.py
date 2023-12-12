@@ -23,7 +23,7 @@ class Parameter(Tensor):
     """A special kind of tensor that represents parameters."""
 
 ### STEP 0 -- generate data ###
-def generate_data(num_points=20000, a=1, b=0.5, noise_factor=0.1):
+def generate_data(num_points=100, a=1, b=0.5, noise_factor=0.01):
     # Generate data: 100 points sampled from the quadratic curve listed above
     data_x = init.rand(1, num_points, device=device)
     noise = init.randn(1, num_points, device=device) * noise_factor
@@ -35,14 +35,9 @@ def generate_data(num_points=20000, a=1, b=0.5, noise_factor=0.1):
 
 def error_function(a, b, x, y):
     xsquare = ops.power_scalar(x, 2)
-    #print(x.shape, xsquare.shape, y.shape)
     a_bd = ops.broadcast_to(a.reshape((1,1)), xsquare.shape)
     b_bd_1 = ops.broadcast_to(b.reshape((1,1)), xsquare.shape)
-    #print(type(a_bd))
-    #print(type(xsquare))
-    #ret = ops.power_scalar(xsquare*a_bd + b_bd_1 - y, 2)
     ret = ops.power_scalar(ops.EWiseMul()(xsquare, a_bd) + b_bd_1 - y, 2)
-    #raise
     return ret
 
 def run(model_optimizer, 
@@ -57,18 +52,14 @@ def run(model_optimizer,
         model_optimizer.reset_grad()
         x, y, a = aux_vars
         w1, w2, b = optim_vars
-        b_star = implicit_layer(w1, w2, b)
-        #(b_star**2).backward()
-        #print(w1.grad)
-        #print(w2.grad)
-        #raise
-        #b_star = b
+        #b_star = implicit_layer(w1, w2, b)
+        b_star = implicit_layer(b, w1, w2)
         loss = error_function(a, b_star, x, y) #.mean()
         numel = loss.shape[1]
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
         loss.backward()
-        print(w1, w2)
+        #print(w1, w2)
         model_optimizer.step()
     print("Final a and b")
     print(a, b_star)
@@ -84,7 +75,6 @@ class cost():
 class cost1(cost):
     def __init__(self):
         super().__init__()
-        self.w = None
 
     def __call__(self, x):
         return x**2
@@ -104,7 +94,9 @@ class cost2(cost):
 
 
 if __name__=='__main__':
-    data_x, data_y, A, B, a, b  = generate_data(b=-1)
+    #data_x, data_y, A, B, a, b  = generate_data(b=-1)
+    data_x, data_y, A, B, a, b  = generate_data(b=-0.5)
+    #data_x, data_y, A, B, a, b  = generate_data(b=-1)
     # Plot the data
     fig, ax = plt.subplots()
     ax.scatter(data_x.numpy(), data_y.numpy())
@@ -114,13 +106,14 @@ if __name__=='__main__':
     #raise
 
     # Initial weights
-    w1 = Parameter(Tensor(np.array([4.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
-    w2 = Parameter(Tensor(np.array([2.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
-    print("INITIAL WEIGHTS: {}".format([w1,w1]))
+    w1 = Parameter(Tensor(np.array([2.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
+    w2 = Parameter(Tensor(np.array([1.]), requires_grad=True, device=ndl.cpu(), dtype="float32"))
+    print("INITIAL WEIGHTS: {}".format([w1,w2]))
     #raise
 
     #x = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))*5
-    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))*5
+    b = Tensor(init.ones(*(1,), requires_grad=False, device=ndl.cpu(), dtype="float32"))*2.
+    a = Parameter(Tensor(init.ones(*(1,), requires_grad=True, device=ndl.cpu(), dtype="float32"))*2.)
     #aux_vars = x, A, B
     aux_vars = A, B, a
     optim_vars = w1, w2, b
@@ -128,8 +121,8 @@ if __name__=='__main__':
     #optim_vars = [optim_vars1, optim_vars2]
     #raise
 
-    #weight_optimizer = ndl.optim.Adam(weights, lr=1e-3, weight_decay=1e-4)
-    model_optimizer = ndl.optim.Adam([w1, w2], lr=1e-1, weight_decay=1e-3)
+    #model_optimizer = ndl.optim.Adam([w1, w2], lr=1e-3, weight_decay=1e-3)
+    model_optimizer = ndl.optim.Adam([w1, w2, a], lr=1e-3, weight_decay=1e-3)
 
     #opt = ndl.optim.InnerOptimizer(device='cpu')
     #opt = "Linear" # or Nonlinear
@@ -147,7 +140,7 @@ if __name__=='__main__':
 
     implicit_layer = ndl.nn.WeightImplicitLayer(opt, cost_fn, "implicit")
 
-    num_epochs = 1000
+    num_epochs = 5000
 
     run(model_optimizer, num_epochs, aux_vars, optim_vars, opt, cost_fn, implicit_layer)
     print("\nHEY LOOK MA WE MADE IT\n")
