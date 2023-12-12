@@ -816,6 +816,12 @@ class LSImplicit(TensorOp):
             '''
                 Compute partial x_star/partial y
             '''
+            print(node.inputs[2].shape)
+            _A = node.inputs[2]
+            AT_A = _A@transpose(_A, (0,1))
+            print(AT_A.shape)
+            print(inverse(AT_A))
+            raise
             out_grads = [Tensor(init.zeros(*ipt.shape), device=out_grad.device) for ipt in node.inputs]
             return out_grads
 
