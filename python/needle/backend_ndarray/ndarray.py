@@ -4,7 +4,6 @@ from functools import reduce
 import numpy as np
 from . import ndarray_backend_numpy
 from . import ndarray_backend_cpu
-import sympy as sp
 
 # math.prod not in Python 3.7
 def prod(x):
@@ -521,12 +520,17 @@ class NDArray:
 
 
     def inverse(self):
-        out = np.linalg.inv(self.numpy())
-        out = NDArray(out, device=self.device)
-        print(self.compact())
-        print(out)
-        raise
-        self.device.inverse(self.compact()._handle, out._handle)
+        #np_out = np.linalg.inv(self.numpy())
+        out = NDArray.make(self.shape, device=self.device)
+        #print(self.compact())
+        #print(out)
+        #raise
+        self.device.inverse(self.compact()._handle, out._handle, self.shape[0])
+        #print(out)
+        #print()
+        #print(np_out)
+        #assert np.allclose(out.numpy(), np_out)
+        #raise
         return out
 
         ###print(self.compact())

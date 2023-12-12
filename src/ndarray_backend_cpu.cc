@@ -588,14 +588,25 @@ void ReduceMax(const AlignedArray& a, AlignedArray* out, size_t reduce_size) {
 }
 
 void Inverse(const AlignedArray& a, AlignedArray* out, size_t n) {
-	/***
-	 * Computes matrix inverse
+	/*
+	 * Computes the matrix inverse of a and stores it in out where a is a square matrix of size n
 	 */
-	for (size_t i = 0; i < n; i++) {
-		for (size_t j = 0; j < n; j++) {
-			out->ptr[i*n + j] = 0;
-		}
-	}
+  AlignedArray L = AlignedArray(n*n);
+  AlignedArray U = AlignedArray(n*n);
+  AlignedArray y = AlignedArray(n);
+  AlignedArray temp = AlignedArray(n);
+  LUDecomposition(a, &L, &U, n);
+  for (int i = 0; i < n; ++i) {
+    temp.ptr[i] = 0;
+  }
+  for (int i = 0; i < n; ++i) {
+    temp.ptr[i] = 1;
+    ForwardBackward(L, U, temp, &y, n);
+    for (int j = 0; j < n; ++j) {
+      out->ptr[j*n+i] = y.ptr[j];
+    }
+    temp.ptr[i] = 0;
+  }
 
 }
 

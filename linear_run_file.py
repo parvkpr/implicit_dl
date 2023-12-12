@@ -142,7 +142,7 @@ def run(model_optimizer,
 if __name__=='__main__':
     np.random.seed(137)
     data = []
-    for NUM_X in [7, 5, 10, 20, 30]:
+    for NUM_X in [2, 5, 10, 20, 30]:
         print("\nNUM X: {}".format(NUM_X))
         input_x = list(np.random.randn(NUM_X)[None])
         data_x, data_y, A, B  = generate_data(x=input_x)
