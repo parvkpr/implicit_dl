@@ -19,7 +19,6 @@ class LinearCostFunction(CostFunction):
 
     def __call__(self, a, *args: Any, **kwds: Any) -> Any:
         return self.cost_function(self.w, a)
-        #return np.linalg.norm((self.optim_vars.numpy() @ x - self.aux_vars[0]).numpy())
     
     def grad(self, a, *args: Any, **kwds: Any) -> Any:
         return self.cost_function.grad(a)
