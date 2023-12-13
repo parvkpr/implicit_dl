@@ -17,12 +17,11 @@ class LinearCostFunction(CostFunction):
     def __init__(self, aux_vars, optim_vars, cost_function):
         super().__init__(aux_vars, optim_vars, cost_function)
 
-    def __call__(self, x, *args: Any, **kwds: Any) -> Any:
-        ###
-        # TODO: Implment linear cost function
-        ###
-        #return ndl.ops.summation(self.optim_vars @ x - self.aux_vars[0], axis=(1,))
-        return np.linalg.norm((self.optim_vars.numpy() @ x - self.aux_vars[0]).numpy())
+    def __call__(self, a, *args: Any, **kwds: Any) -> Any:
+        return self.cost_function(self.w, a)
+    
+    def grad(self, a, *args: Any, **kwds: Any) -> Any:
+        return self.cost_function.grad(a)
  
 
 
@@ -37,7 +36,6 @@ class NonLinearCostFunction(CostFunction):
     def __call__(self, a, *args: Any, **kwds: Any) -> Any:
         return self.cost_function(self.w, a)
 
-    #def grad(self, a, *args: Any, **kwds: Any) -> Any:
     def grad(self, a, *args: Any, **kwds: Any) -> Any:
         return self.cost_function.grad(a)
 
