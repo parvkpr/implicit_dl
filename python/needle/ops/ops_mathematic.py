@@ -739,34 +739,6 @@ class LSImplicit(TensorOp):
     def __init__(self, opt, implicit_grad_method):
         self.opt = opt
         self.implicit_grad_method = implicit_grad_method
-
-    def implicitDiff(self):
-        # This computes partial b* / partial a
-        if(self.opt == 'Scalar'):
-            _, x, _ = self.cost_fn.aux_vars
-            implicit_grad = - summation(x**2)/x.shape[1]
-            implicit_grad = implicit_grad.detach()
-            return implicit_grad
-        elif(self.opt == 'Linear'):
-            _, A, B = self.cost_fn.aux_vars
-            _A, _B = A.numpy(), B.numpy()
-
-            #TODO Support this in needle
-            import numpy as np
-            implicit_grad = np.linalg.inv(_A.T @ _A) @ _A.T #@ _B
-            return Tensor(init.ones(*A.shape), device=A.device)
-        else:
-            raise NotImplementedError("Select Scalar or Linear opt")
-
-    
-    def unrollDiff(self):
-        raise NotImplementedError("Unrolling is not implemented")
-    
-    def compute_grad(self):
-        if self.implicit_grad_method == "implicit":
-            return self.implicitDiff()
-        elif self.implicit_grad_method == "unroll":
-            return self.unrollDiff()
         
     def compute(self, x, y, A, B):
         '''
@@ -809,17 +781,22 @@ class LSImplicit(TensorOp):
         cur_input = node.inputs[0]
 
         if(self.opt == 'Scalar'):
+            _A = node.inputs[2]
             out_grads = [Tensor(init.zeros(*ipt.shape), device=out_grad.device) for ipt in node.inputs]
-            return out_grads
+            out_grads[0] = out_grad.reshape((1,))*(-summation(_A**2)/_A.shape[1])
 
         elif(self.opt == 'Linear'):
             '''
                 Compute partial x_star/partial y
             '''
+            _A = node.inputs[2]
+            AT_A = _A@transpose(_A, (0,1))
             out_grads = [Tensor(init.zeros(*ipt.shape), device=out_grad.device) for ipt in node.inputs]
-            return out_grads
+            out_grads[0] = summation(out_grad.reshape((1,out_grad.shape[0])) @ inverse(AT_A)@_A)
+        
+        return out_grads
 
-        return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
+        #return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
         
 def lsimplicit(inner_optimizer, implicit_grad_method, x, y, A, B):
     return LSImplicit(inner_optimizer, implicit_grad_method)(x, y, A, B)
