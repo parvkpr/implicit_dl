@@ -150,7 +150,6 @@ if __name__=='__main__':
         # Initialize the implicit layer with the inner optim type, the cost function and the inner gradient calculation type
         implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
 
-        #num_epochs = 100
         num_epochs = 100
 
         # run the optimization for a given number of epochs 
