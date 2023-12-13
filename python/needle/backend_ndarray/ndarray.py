@@ -520,46 +520,10 @@ class NDArray:
 
 
     def inverse(self):
-        #np_out = np.linalg.inv(self.numpy())
         out = NDArray.make(self.shape, device=self.device)
-        #print(self.compact())
-        #print(out)
-        #raise
         self.device.inverse(self.compact()._handle, out._handle, self.shape[0])
-        #print(out)
-        #print()
-        #print(np_out)
-        #assert np.allclose(out.numpy(), np_out)
-        #raise
         return out
 
-        ###print(self.compact())
-        ####temp = NDArray((self.compct()@A.transpose()).numpy(), device=self.device)
-        ####print(self.shape)
-        ####raise
-        ####temp = NDArray.make(temp.shape, device=self.device)
-        ####print(self.device.a_transpose_a(self.compact()))
-        ####raise
-        ####temp = NDArray((A@A.transpose()).numpy(), device=self.device)
-        ####L = NDArray.make(temp.shape, device=self.device)
-        ####U = NDArray.make(temp.shape, device=self.device)
-        ####L.fill(0)
-        ####U.fill(0)
-        ####self.device.LU(temp._handle, L._handle, U._handle, temp.shape[0])
-
-        #### Have L and U. Just need to do N solves then stack...
-        ####for i in range(self.shape[0]):
-        ####    raise
-        ####    self.device.forward_backward(L._handle, U._handle, target.compact()._handle,
-        ####                                 out._handle, L.shape[0])
-
-        ####return out
-        ###out = NDArray.make(self.shape, device=self.device)
-        ###self.device.inverse(self.compact()._handle, out._handle, self.shape[0])
-        ####print(out)
-        ####raise
-        ###return out
-    
 
     def solve(self, A, b, opt):
         '''
