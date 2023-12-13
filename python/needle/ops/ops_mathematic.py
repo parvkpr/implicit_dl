@@ -796,7 +796,6 @@ class LSImplicit(TensorOp):
         
         return out_grads
 
-        #return summation(out_grad.reshape((1,out_grad.shape[0])) @ layer_grad)
         
 def lsimplicit(inner_optimizer, implicit_grad_method, x, y, A, B):
     return LSImplicit(inner_optimizer, implicit_grad_method)(x, y, A, B)

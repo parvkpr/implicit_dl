@@ -116,7 +116,7 @@ def run(model_optimizer,
 
         # store the intermediate values
         a_vals.append(a.numpy()[0])
-        b_vals.append(b_star.numpy()[0])
+        b_vals.append(b_star.numpy()[0][0])
 
     return a, b_star, a_vals, b_vals
 
@@ -150,6 +150,7 @@ if __name__=='__main__':
         # Initialize the implicit layer with the inner optim type, the cost function and the inner gradient calculation type
         implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
 
+        #num_epochs = 100
         num_epochs = 100
 
         # run the optimization for a given number of epochs 

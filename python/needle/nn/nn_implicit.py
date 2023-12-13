@@ -10,7 +10,7 @@ from .nn_basic import Parameter, Module
 
 class ImplicitLayer(Module):
     """
-    this is our non linear least squares implicit layers
+    this is our linear least squares implicit layers
     """
     def __init__(self, inner_optimizer, cost_fn, implicit_grad_method, device=None, dtype="float32"):
         super().__init__()

@@ -1,4 +1,0 @@
-/usr0/home/parvk/needle_im/needle_implicit/build/CMakeFiles/ndarray_backend_cpu.dir
-/usr0/home/parvk/needle_im/needle_implicit/build/CMakeFiles/ndarray_backend_cuda.dir
-/usr0/home/parvk/needle_im/needle_implicit/build/CMakeFiles/edit_cache.dir
-/usr0/home/parvk/needle_im/needle_implicit/build/CMakeFiles/rebuild_cache.dir
