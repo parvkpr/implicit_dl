@@ -1,5 +1,5 @@
 import sys
-sys.path.append('./python')
+sys.path.append("../python/")
 import itertools
 import numpy as np
 import pytest
@@ -55,6 +55,9 @@ def compute_norms(X, XGt, Y, YGt):
     return norm_X, norm_Y
 
 def generate_plots(data):
+    '''
+    generates plots of error norms of X and Y and their evolution with size
+    '''
     nx = []
     ny = []
     sizes = []
@@ -84,8 +87,7 @@ def generate_plots(data):
     ax[1].legend()
 
     # Show plots
-    plt.savefig("./scaling.png")
-    plt.savefig("./scaling.pdf")
+    plt.savefig("results/scaling.png")
     plt.show()
 
 
@@ -94,7 +96,9 @@ def run(model_optimizer,
         num_epochs, 
         aux_vars, 
         implicit_layer):
-
+    '''
+    runs the optimization loop for number of epochs while using implicit layers
+    '''
     for epoch in tqdm(range(num_epochs)):
         model_optimizer.reset_grad()
 
@@ -102,12 +106,16 @@ def run(model_optimizer,
         # get optimum value by solving the inner optimization problem
         x_star = implicit_layer(y)
         
-        # compute loss for outer optimisation
+        # compute loss for outer optimization
         loss = error_function(y, x_star, A, B) 
         numel = loss.shape[1]
         loss = ops.summation(loss)
         loss = ops.divide_scalar(loss, numel)
+        
+        # compute gradients
         loss.backward()
+
+        # modify params
         model_optimizer.step()
 
     return y, x_star
@@ -140,7 +148,7 @@ if __name__=='__main__':
                                                                 optim_vars, 
                                                                 error_function)
         
-        #Initialize the optim layer with the inner optim type, the cost function and the inner gradient calculation type
+        #Initialize the implicit layer with the inner optim type, the cost function and the inner gradient calculation type
         implicit_layer = ndl.nn.ImplicitLayer(opt, cost_fn, "implicit")
 
 
@@ -152,7 +160,7 @@ if __name__=='__main__':
         print("Y ERROR: {}".format(np.linalg.norm(data_y - final_y.numpy())))
         print("X ERROR: {}".format(np.linalg.norm(data_x.numpy() - final_x.numpy())))
 
-
+        # store data for plotting
         data.append([data_x, final_x.numpy(), data_y, final_y.numpy()])
 
     # generate the plots from error of final predictions and size of x

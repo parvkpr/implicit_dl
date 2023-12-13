@@ -72,14 +72,7 @@ class LanguageModel(nn.Module):
             out, h = self.seq_model(embedded)
         else:
             out, h = self.seq_model(embedded, h)
-        # print('here')
-        # print(x.shape)
-        # print(out.shape)
-        # print(h[0].shape)
-        # # Linear layer
-        # out.device = x.device
         out = out.reshape((out.shape[0]*out.shape[1], out.shape[2]))
-        print(out.device)
         out = self.linear(out)
         
         return out, h
